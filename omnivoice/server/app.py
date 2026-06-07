@@ -11,11 +11,12 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
 
+from .auth import COOKIE, PUBLIC_PATHS, Auth
 from .engine import Engine, QueueFullError
 from .normalize import NormalizerError
 from .presets import PRESETS
@@ -36,10 +37,99 @@ def _audio_response(data: bytes, content_type: str, as_json: bool, fmt: str) -> 
     return Response(content=data, media_type=content_type)
 
 
+def _login_page(error: bool = False) -> str:
+    err = ('<div class="err">Sai email hoặc mật khẩu</div>' if error else "")
+    return f"""<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng nhập · Vonia</title><style>
+*{{box-sizing:border-box}}body{{margin:0;min-height:100vh;display:flex;align-items:center;
+justify-content:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+background:radial-gradient(1200px 600px at 50% -10%,#0e2a33,#0a0f14 60%);color:#e6eef2}}
+.card{{width:340px;padding:32px 28px;background:#10171d;border:1px solid #1d2a33;
+border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45)}}
+.brand{{display:flex;align-items:center;gap:10px;margin-bottom:22px}}
+.dot{{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#22d3ee,#0891b2)}}
+.brand b{{font-size:18px;letter-spacing:-.01em}}
+label{{display:block;font-size:12.5px;color:#8aa0ad;margin:14px 0 6px}}
+input{{width:100%;padding:11px 12px;background:#0b1116;border:1px solid #25333d;border-radius:9px;
+color:#e6eef2;font-size:14px;outline:none}}input:focus{{border-color:#22d3ee}}
+button{{width:100%;margin-top:20px;padding:11px;border:0;border-radius:9px;font-weight:700;
+font-size:14px;color:#022;cursor:pointer;background:linear-gradient(135deg,#22d3ee,#0891b2)}}
+.err{{margin-top:14px;padding:9px 12px;border-radius:9px;background:#3a1416;border:1px solid #5b1d22;
+color:#ffb4b4;font-size:13px}}.foot{{margin-top:16px;font-size:11.5px;color:#5c7180;text-align:center}}
+</style></head><body><form class="card" method="post" action="/login">
+<div class="brand"><span class="dot"></span><b>Vonia Voice Studio</b></div>
+<label>Email</label><input name="username" type="email" autocomplete="username" autofocus required>
+<label>Mật khẩu</label><input name="password" type="password" autocomplete="current-password" required>
+<button type="submit">Đăng nhập</button>{err}
+<div class="foot">MVP · truy cập riêng tư</div></form></body></html>"""
+
+
 def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="OmniVoice API", version="1.0",
                   description="Zero-shot multilingual TTS — voice cloning, voice design, auto voice.")
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+    # CORS: defaults to "*" for local dev. In production (behind a domain) set
+    # VONIA_CORS_ORIGINS to the exact origin(s), comma-separated, e.g.
+    # "https://vonia.locnguyendata.com". The UI is served same-origin so it never
+    # needs CORS; webhooks are server-to-server and aren't subject to it either.
+    _origins_env = os.environ.get("VONIA_CORS_ORIGINS", "*").strip()
+    allow_origins = ["*"] if _origins_env == "*" else [o.strip() for o in _origins_env.split(",") if o.strip()]
+    app.add_middleware(CORSMiddleware, allow_origins=allow_origins,
+                       allow_methods=["*"], allow_headers=["*"])
+
+    # Reject oversized request bodies before they are read into memory (DoS guard).
+    # Defense-in-depth: the reverse proxy / Cloudflare should also cap this.
+    max_upload = int(os.environ.get("VONIA_MAX_UPLOAD_MB", "25")) * 1024 * 1024
+
+    @app.middleware("http")
+    async def _limit_body(request: Request, call_next):
+        if request.method in ("POST", "PUT", "PATCH"):
+            cl = request.headers.get("content-length")
+            if cl and cl.isdigit() and int(cl) > max_upload:
+                return _err(413, f"Payload too large (limit {max_upload // 2**20} MB).",
+                            "payload_too_large")
+        return await call_next(request)
+
+    # ----------------------------------------------------------------- auth
+    auth = Auth()
+
+    def _wants_html(request: Request) -> bool:
+        return "text/html" in request.headers.get("accept", "")
+
+    @app.middleware("http")
+    async def _gate(request: Request, call_next):
+        if not auth.enabled or request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
+            return await call_next(request)
+        if auth.valid_cookie(request.cookies.get(COOKIE)) or auth.check_basic(
+                request.headers.get("authorization")):
+            return await call_next(request)
+        if _wants_html(request):  # browser navigation -> show login page
+            return RedirectResponse("/login", status_code=303)
+        return _err(401, "Authentication required.", "unauthorized")
+
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_page(request: Request, error: int = Query(0)):
+        if auth.enabled and auth.valid_cookie(request.cookies.get(COOKIE)):
+            return RedirectResponse("/", status_code=303)
+        return HTMLResponse(_login_page(error=bool(error)))
+
+    @app.post("/login")
+    async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
+        if not auth.check_credentials(username, password):
+            return RedirectResponse("/login?error=1", status_code=303)
+        resp = RedirectResponse("/", status_code=303)
+        secure = (request.headers.get("x-forwarded-proto", "").startswith("https")
+                  or request.url.scheme == "https")
+        resp.set_cookie(COOKIE, auth.token, httponly=True, samesite="lax",
+                        secure=secure, max_age=7 * 24 * 3600, path="/")
+        return resp
+
+    @app.get("/logout")
+    async def logout():
+        resp = RedirectResponse("/login", status_code=303)
+        resp.delete_cookie(COOKIE, path="/")
+        return resp
 
     # --------------------------------------------------------- error handlers
     @app.exception_handler(NormalizerError)
@@ -109,12 +199,14 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         normalize: bool = Form(False),
         num_step: Optional[int] = Form(None),
         guidance_scale: Optional[float] = Form(None),
+        postprocess_output: Optional[bool] = Form(None),
         response_format: str = Form("wav"),
         json: bool = Query(False),
     ):
         ref_bytes = await file.read() if file is not None else None
         ext = os.path.splitext(file.filename)[1] if file and file.filename else ".wav"
-        gen = {k: v for k, v in (("num_step", num_step), ("guidance_scale", guidance_scale)) if v is not None}
+        gen = {k: v for k, v in (("num_step", num_step), ("guidance_scale", guidance_scale),
+                                 ("postprocess_output", postprocess_output)) if v is not None}
         audio = await engine.synthesize(
             text=text, language=language, voice_id=voice_id, ref_audio_bytes=ref_bytes,
             ref_audio_ext=ext, ref_text=ref_text, instruct=instruct, speed=speed,

@@ -68,6 +68,10 @@ class Engine:
         self.voices = VoiceLibrary(voices_dir)
         self.normalizer = Normalizer(normalizer_spec) if normalizer_spec else Normalizer(None)
 
+        # NOTE: concurrency > 1 is NOT supported. The OmniVoice model and the lazy
+        # ASR loader in transcribe() share mutable state with no lock, so parallel
+        # GPU jobs can double-load Whisper or corrupt model state. serve.py clamps
+        # this to 1; keep it 1 unless the model is made thread-safe.
         self.max_concurrency = max(1, max_concurrency)
         self.max_queue = max(0, max_queue)
         self._sem = asyncio.Semaphore(self.max_concurrency)

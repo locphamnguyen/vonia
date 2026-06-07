@@ -23,7 +23,10 @@ def get_parser() -> argparse.ArgumentParser:
     p.add_argument("--voices-dir", default="~/.cache/omnivoice/voices", help="Where to persist registered voices.")
     p.add_argument("--normalizer", default=DEFAULT_NORMALIZER_SPEC,
                    help="Text normalizer spec '<path.py|module>:<func>'. Empty string disables it.")
-    p.add_argument("--max-concurrency", type=int, default=1, help="Concurrent GPU generations.")
+    p.add_argument("--max-concurrency", type=int, default=1,
+                   help="Concurrent GPU generations. WARNING: values >1 are NOT supported — "
+                        "the model and the lazy ASR loader are not thread-safe, so >1 risks "
+                        "double-loading Whisper / CUDA errors. Keep at 1.")
     p.add_argument("--max-queue", type=int, default=32, help="Max requests queued before returning 503.")
     p.add_argument("--load-asr", action="store_true", help="Preload Whisper ASR at startup.")
     p.add_argument("--web-dir", default=None,
@@ -38,12 +41,43 @@ def _default_web_dir():
     return d if os.path.isdir(d) else None
 
 
+def _load_dotenv():
+    """Load KEY=VALUE lines from a .env at the repo root (no extra dependency).
+    Existing environment variables win, so CLI/shell overrides still apply."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.abspath(os.path.join(here, "..", ".."))  # repo root
+    for path in (os.path.join(root, ".env"), os.path.join(os.getcwd(), ".env")):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, _, v = line.partition("=")
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    os.environ.setdefault(k, v)
+        except OSError:
+            pass
+        break
+
+
 def main():
     fmt = "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=fmt, level=logging.INFO, force=True)
+    _load_dotenv()
     args = get_parser().parse_args()
 
     import uvicorn
+
+    if args.max_concurrency > 1:
+        logging.warning(
+            "--max-concurrency=%d requested, but concurrency >1 is NOT supported: "
+            "the model and ASR loader are not thread-safe. Forcing 1.",
+            args.max_concurrency,
+        )
+        args.max_concurrency = 1
 
     logging.info("Loading OmniVoice model '%s' ...", args.model)
     engine = Engine(
@@ -64,6 +98,12 @@ def main():
             logging.warning("Normalizer not ready (normalize=true will 400): %s", err)
         else:
             logging.info("Normalizer ready: %s", engine.normalizer.spec)
+
+    if os.environ.get("VONIA_AUTH_USER") and os.environ.get("VONIA_AUTH_PASS"):
+        logging.info("Login enabled for user '%s' (session cookie + Basic auth).",
+                     os.environ["VONIA_AUTH_USER"])
+    else:
+        logging.warning("Login DISABLED (set VONIA_AUTH_USER/VONIA_AUTH_PASS in .env to protect).")
 
     web_dir = args.web_dir or _default_web_dir()
     if web_dir:

@@ -5,14 +5,24 @@ import react from '@vitejs/plugin-react'
 // same-origin in production (mounted at '/') and proxied in dev.
 const API = process.env.VONIA_API || 'http://localhost:8002'
 
+// In dev the API (8002) may require login. If VONIA_AUTH_USER/PASS are present in
+// the shell env, the proxy injects HTTP Basic auth so dev API calls aren't 401.
+// Creds come from the environment only — never hardcoded/committed here.
+const AUTH = process.env.VONIA_AUTH_USER && process.env.VONIA_AUTH_PASS
+  ? `${process.env.VONIA_AUTH_USER}:${process.env.VONIA_AUTH_PASS}`
+  : undefined
+const target = { target: API, changeOrigin: true, ...(AUTH ? { auth: AUTH } : {}) }
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 5273,
     proxy: {
-      '/tts': API,
-      '/health': API,
-      '/v1': API,
+      '/tts': target,
+      '/health': target,
+      '/v1': target,
+      '/login': target,
+      '/logout': target,
     },
   },
   build: { outDir: 'dist', emptyOutDir: true },

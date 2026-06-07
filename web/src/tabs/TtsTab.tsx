@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Icon, Btn, Select, Segmented, Panel, AudioPlayer, useToast } from '../components/ui'
+import { Icon, Btn, Select, Segmented, Panel, AccordionProvider, AudioPlayer, useToast } from '../components/ui'
 import { LanguageField, AdvancedSettings, AudioTuning, BatchPanel, ExportPanel, useSettings, DEFAULTS } from '../components/panels'
 import { VoiceList } from '../components/voice-library'
 import { ResultsTable, GenBar } from '../components/results'
@@ -49,7 +49,7 @@ function VoicePanel({ lang, mode, setMode, selVoice, onSelect, starred, onStar, 
           <div className="row between" style={{ margin: '2px 0 4px' }}>
             <span className="section-title">{t(lang, 'pick_from_store')} <span className="muted">({voices.length} {t(lang, 'samples')})</span></span>
           </div>
-          <VoiceList voices={voices} lang={lang} selected={selVoice} onSelect={onSelect} starred={starred} onStar={onStar} mixedCloned previewLang={previewLang} />
+          <VoiceList voices={voices} lang={lang} selected={selVoice} onSelect={onSelect} starred={starred} onStar={onStar} mixedCloned removable previewLang={previewLang} />
         </div>
       ) : (
         <div className="stack gap14">
@@ -139,13 +139,15 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
       <div className="leftcol">
         <div className="rail">
           <LanguageField lang={lang} value={language} onChange={setLanguage} />
-          <VoicePanel lang={lang} mode={mode} setMode={setMode} selVoice={selVoice} onSelect={setSelVoice}
-            starred={starred} onStar={onStar} random={random} setRandom={setRandom}
-            voices={[...VOICES, ...store.userUIVoices]} previewLang={LANG_NAME[language]} />
-          <AdvancedSettings lang={lang} s={s} set={set} open={false} />
-          <AudioTuning lang={lang} s={s} set={set} open={false} />
-          <BatchPanel lang={lang} s={s} set={set} />
-          <ExportPanel lang={lang} onExport={onExport} />
+          <AccordionProvider initial={t(lang, 'voice')}>
+            <VoicePanel lang={lang} mode={mode} setMode={setMode} selVoice={selVoice} onSelect={setSelVoice}
+              starred={starred} onStar={onStar} random={random} setRandom={setRandom}
+              voices={[...VOICES, ...store.userUIVoices]} previewLang={LANG_NAME[language]} />
+            <AdvancedSettings lang={lang} s={s} set={set} open={false} />
+            <AudioTuning lang={lang} s={s} set={set} open={false} />
+            <BatchPanel lang={lang} s={s} set={set} />
+            <ExportPanel lang={lang} onExport={onExport} />
+          </AccordionProvider>
         </div>
         <div className="railfoot">
           <GenBar lang={lang} running={gen.running} status={gen.status} progress={gen.progress} onStart={start} onStop={gen.stop} />

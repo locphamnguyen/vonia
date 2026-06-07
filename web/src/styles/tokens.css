@@ -580,6 +580,14 @@ button { font-family: inherit; }
 .pron-table tbody tr.has-reading .pron-ctx, .pron-table tbody tr:focus-within .pron-ctx { color: var(--accent); }
 .pron-input { height: 34px; padding: 0 11px; font-size: 13px; }
 .pron-ctx { font-size: 12.5px; color: var(--text-muted); }
+/* Clone warn / save-voice confirm modals */
+.modal.modal-warn { width: min(500px, 94vw); }
+.warn-ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--warn-soft); color: var(--warn); flex-shrink: 0; }
+.ask-ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+.warn-sample { font-size: 13px; line-height: 1.6; color: var(--text); background: var(--inset); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: var(--r-md); padding: 12px 14px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; }
+/* Inline delete button on voice rows */
+.vrow .vdel { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--text-faint); border: none; cursor: pointer; flex-shrink: 0; transition: .14s; }
+.vrow .vdel:hover { background: var(--bad-soft); color: var(--bad); }
 .modal-tabs { display: flex; gap: 4px; padding: 10px 16px 0; border-bottom: 1px solid var(--border); }
 .modal-tab { padding: 9px 15px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: .15s; }
 .modal-tab:hover { color: var(--text); }

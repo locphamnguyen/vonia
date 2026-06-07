@@ -12,8 +12,8 @@ export interface UIVoice { name: string; g?: 'M' | 'F'; vi?: string; en?: string
 const PREVIEW_TEXT = 'Xin chào, đây là giọng đọc thử của Vonia.'
 const PREVIEW_SETTINGS = { detail: 32, adherence: 2, speed: 1, proc: 'raw', normalize: false } as any
 
-function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loading, onPlay, onDelete }:
-  { v: UIVoice; lang: Lang; selected: boolean; onSelect: () => void; starred: boolean; onStar: () => void; playing: boolean; loading: boolean; onPlay: () => void; onDelete?: () => void }) {
+function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loading, onPlay, onDelete, onRemove }:
+  { v: UIVoice; lang: Lang; selected: boolean; onSelect: () => void; starred: boolean; onStar: () => void; playing: boolean; loading: boolean; onPlay: () => void; onDelete?: () => void; onRemove?: () => void }) {
   return (
     <div className={'vrow' + (selected ? ' sel' : '')} onClick={onSelect}>
       <span className={'star' + (starred ? ' on' : '')} onClick={(e) => { e.stopPropagation(); onStar() }} title="Star">
@@ -31,13 +31,15 @@ function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loadi
             onClick={(e) => { e.stopPropagation(); onPlay() }}>
             <Icon name={loading ? 'loader' : (playing ? 'pause' : 'play')} size={14} fill={!playing && !loading} />
           </button>}
+      {onRemove && <button className="vdel" title={t(lang, 'delete_voice')} onClick={(e) => { e.stopPropagation(); onRemove() }}><Icon name="x" size={14} /></button>}
     </div>
   )
 }
 
-export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete, mixedCloned, previewLang }:
-  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void; mixedCloned?: boolean; previewLang?: string }) {
+export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete, removable, mixedCloned, previewLang }:
+  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void; removable?: boolean; mixedCloned?: boolean; previewLang?: string }) {
   const [q, setQ] = useState('')
+  const [removed, setRemoved] = useState<Set<string>>(() => new Set())
   const [gender, setGender] = useState<'all' | 'M' | 'F'>('all')
   const [starOnly, setStarOnly] = useState(false)
   const [clonedOnly, setClonedOnly] = useState(false)
@@ -81,7 +83,13 @@ export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, o
     }
   }
 
+  const remove = (name: string) => {
+    setRemoved(r => { const n = new Set(r); n.add(name); return n })
+    toast({ kind: 'info', title: lang === 'en' ? `Removed “${name}”` : `Đã ẩn “${name}”` })
+  }
+
   const filtered = voices.filter(v => {
+    if (removed.has(v.name)) return false
     // Gender narrows only voices that declare a gender; cloned voices (no `g`)
     // always pass so "Cloned" can combine with Male/Female (issue #4).
     if (gender !== 'all' && v.g && v.g !== gender) return false
@@ -126,7 +134,8 @@ export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, o
               selected={selected === v.name} onSelect={() => onSelect(v.name)}
               starred={starred.has(v.name)} onStar={() => onStar(v.name)}
               playing={playingName === v.name} loading={loadingName === v.name} onPlay={() => preview(v.name)}
-              onDelete={onDelete ? () => onDelete(v) : undefined} />
+              onDelete={onDelete ? () => onDelete(v) : undefined}
+              onRemove={removable && !onDelete ? () => remove(v.name) : undefined} />
           ))}
         </div>
       ) : (
@@ -164,7 +173,7 @@ export function VoiceStore({ lang, selected, onSelect, starred, onStar, yourVoic
           <div className="row between" style={{ marginBottom: 10 }}>
             <span className="section-title">{t(lang, 'available')} <span className="muted">({VOICES.length} {t(lang, 'samples')})</span></span>
           </div>
-          <VoiceList voices={VOICES as Voice[]} lang={lang} selected={selected} onSelect={onSelect} starred={starred} onStar={onStar} />
+          <VoiceList voices={VOICES as Voice[]} lang={lang} selected={selected} onSelect={onSelect} starred={starred} onStar={onStar} removable />
         </div>
         <div className="vlib-col">
           <div className="row between" style={{ marginBottom: 10 }}>

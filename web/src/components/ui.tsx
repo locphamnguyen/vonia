@@ -32,6 +32,7 @@ const ICONS: Record<string, string> = {
   folder: 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z',
   check: 'M20 6 9 17l-5-5',
   warn: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z|M12 9v4|M12 17h.01',
+  help: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z|M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3|M12 17h.01',
   sparkles: 'M9.94 14.66A2 2 0 0 0 8.5 13.2l-5.2-1.34a.5.5 0 0 1 0-.96L8.5 9.56A2 2 0 0 0 9.94 8.1l1.34-5.2a.5.5 0 0 1 .96 0l1.34 5.2A2 2 0 0 0 15.02 9.56l5.2 1.34a.5.5 0 0 1 0 .96l-5.2 1.34a2 2 0 0 0-1.44 1.46l-1.34 5.2a.5.5 0 0 1-.96 0z|M20 3v4|M22 5h-4',
   link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71|M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2|M12 11m-4 0a4 4 0 1 0 8 0 4 4 0 1 0-8 0',
@@ -179,11 +180,25 @@ export function Segmented({ value, options, onChange }: any) {
 }
 
 /* ---------------- Collapsible panel ---------------- */
-export function Panel({ title, icon, defaultOpen = true, children, tight, right }: any) {
-  const [open, setOpen] = useState(defaultOpen)
+/* Accordion: wrap a group of <Panel>s in <AccordionProvider> and only one stays
+   open at a time. Panels marked `independent` opt out and keep local state. */
+const AccordionCtx = createContext<{ openId: string | null; toggle: (id: string) => void } | null>(null)
+export function AccordionProvider({ children, initial = null }: { children: React.ReactNode; initial?: string | null }) {
+  const [openId, setOpenId] = useState<string | null>(initial)
+  const toggle = useCallback((id: string) => setOpenId(cur => cur === id ? null : id), [])
+  return <AccordionCtx.Provider value={{ openId, toggle }}>{children}</AccordionCtx.Provider>
+}
+
+export function Panel({ title, icon, defaultOpen = true, children, tight, right, id, independent }: any) {
+  const acc = useContext(AccordionCtx)
+  const useAcc = acc && !independent
+  const pid = id || title
+  const [localOpen, setLocalOpen] = useState(defaultOpen)
+  const open = useAcc ? acc!.openId === pid : localOpen
+  const onHead = () => useAcc ? acc!.toggle(pid) : setLocalOpen(o => !o)
   return (
     <div className="panel">
-      <div className={'panel-head' + (open ? ' open' : '')} onClick={() => setOpen(o => !o)}>
+      <div className={'panel-head' + (open ? ' open' : '')} onClick={onHead}>
         <span className="pt">{icon && <Icon name={icon} size={15} />}{title}</span>
         {right}
         <Icon name="chevdown" size={16} className="pchev" />

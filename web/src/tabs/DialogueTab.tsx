@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Icon, Btn, Select, Panel, AudioPlayer, useToast } from '../components/ui'
+import { Icon, Btn, Select, Panel, AccordionProvider, AudioPlayer, useToast } from '../components/ui'
 import { LanguageField, AdvancedSettings, AudioTuning, BatchPanel, useSettings, DEFAULTS } from '../components/panels'
 import { ResultsTable, GenBar } from '../components/results'
 import { PronunciationModal } from '../components/PronunciationModal'
@@ -96,10 +96,12 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
       <div className="leftcol">
         <div className="rail">
           <LanguageField lang={lang} value={language} onChange={setLanguage} />
-          <CastPanel lang={lang} cast={cast} setCast={setCast} />
-          <AdvancedSettings lang={lang} s={s} set={set} open={false} />
-          <AudioTuning lang={lang} s={s} set={set} open={false} />
-          <BatchPanel lang={lang} s={s} set={set} />
+          <AccordionProvider initial={t(lang, 'cast')}>
+            <CastPanel lang={lang} cast={cast} setCast={setCast} />
+            <AdvancedSettings lang={lang} s={s} set={set} open={false} />
+            <AudioTuning lang={lang} s={s} set={set} open={false} />
+            <BatchPanel lang={lang} s={s} set={set} />
+          </AccordionProvider>
         </div>
         <div className="railfoot">
           <GenBar lang={lang} running={gen.running} status={gen.status} progress={gen.progress} onStart={start} onStop={gen.stop} />

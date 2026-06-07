@@ -4,16 +4,11 @@ import { t, type Lang } from '../lib/i18n'
 
 export function Onboarding({ lang, onClose }: { lang: Lang; onClose: () => void }) {
   const [step, setStep] = useState(0)
-  const steps = lang === 'en' ? [
-    { icon: 'mic', title: 'Welcome to Vonia', body: 'A local voice studio: clone voices, turn text into speech, build multi-voice dialogue and transcribe audio — all running privately on your machine.' },
-    { icon: 'audio', title: 'Clone a voice in seconds', body: 'Drop a 5–10s sample, type the matching transcript, and Vonia learns the voice. Save it to “Your voices” to reuse anywhere.' },
-    { icon: 'layers', title: 'Generate at scale', body: 'Paste long text or a full script. Vonia splits it into lines, runs them as a queue with clear progress, and lets you retry any failed line.' },
-    { icon: 'cpu', title: 'Runs on your hardware', body: 'Models run locally on NVIDIA or Apple Silicon GPUs. Download the model once from Environment, then work fully offline.' },
-  ] : [
-    { icon: 'mic', title: 'Chào mừng đến với Vonia', body: 'Studio giọng nói cục bộ: sao chép giọng, chuyển văn bản thành giọng nói, dựng hội thoại nhiều giọng và bóc băng — tất cả chạy riêng tư trên máy bạn.' },
-    { icon: 'audio', title: 'Sao chép giọng trong vài giây', body: 'Thả mẫu 5–10 giây, gõ đúng văn bản tương ứng, Vonia sẽ học giọng đó. Bấm Lưu để dùng lại ở mọi nơi.' },
-    { icon: 'layers', title: 'Tạo hàng loạt', body: 'Dán văn bản dài hoặc cả kịch bản. Vonia tách thành từng dòng, chạy theo hàng đợi với tiến trình rõ ràng, và cho phép thử lại dòng bị lỗi.' },
-    { icon: 'cpu', title: 'Chạy trên phần cứng của bạn', body: 'Mô hình chạy cục bộ trên GPU NVIDIA hoặc Apple Silicon. Tải model một lần ở tab Cài đặt môi trường rồi làm việc hoàn toàn offline.' },
+  const steps = [
+    { icon: 'mic', title: t(lang, 'ob1_title'), body: t(lang, 'ob1_body') },
+    { icon: 'audio', title: t(lang, 'ob2_title'), body: t(lang, 'ob2_body') },
+    { icon: 'layers', title: t(lang, 'ob3_title'), body: t(lang, 'ob3_body') },
+    { icon: 'cpu', title: t(lang, 'ob4_title'), body: t(lang, 'ob4_body') },
   ]
   const cur = steps[step]
   const last = step === steps.length - 1

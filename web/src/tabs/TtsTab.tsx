@@ -35,8 +35,8 @@ function randInstruct(r: any): string {
 
 function VoicePanel({ lang, mode, setMode, selVoice, onSelect, starred, onStar, random, setRandom, voices, previewLang }: any) {
   const autoOpts = [
-    { value: 'auto', label: t(lang, 'auto') }, { value: 'low', label: lang === 'en' ? 'Low' : 'Thấp' },
-    { value: 'mid', label: lang === 'en' ? 'Mid' : 'Trung' }, { value: 'high', label: lang === 'en' ? 'High' : 'Cao' }]
+    { value: 'auto', label: t(lang, 'auto') }, { value: 'low', label: t(lang, 'low') },
+    { value: 'mid', label: t(lang, 'mid') }, { value: 'high', label: t(lang, 'high') }]
   const genderOpts = [{ value: 'auto', label: t(lang, 'auto') }, { value: 'M', label: t(lang, 'male') }, { value: 'F', label: t(lang, 'female') }]
   return (
     <Panel title={t(lang, 'voice')} icon="mic" defaultOpen={true} tight>
@@ -95,14 +95,14 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
 
   const start = () => {
     const lines = splitText()
-    if (!lines.length) { toast({ kind: 'err', title: lang === 'en' ? 'Enter text first' : 'Hãy nhập nội dung' }); return }
+    if (!lines.length) { toast({ kind: 'err', title: t(lang, 'enter_text_first') }); return }
     setPlaySrc(null)
     gen.start(buildItems(lines), s.concurrent)
-    toast({ kind: 'info', title: lang === 'en' ? `Generating ${lines.length} lines…` : `Đang tạo ${lines.length} dòng…` })
+    toast({ kind: 'info', title: t(lang, 'generating_lines').replace('{n}', String(lines.length)) })
   }
   const toTable = () => {
     const lines = splitText()
-    if (!lines.length) { toast({ kind: 'err', title: lang === 'en' ? 'Nothing to split' : 'Chưa có nội dung' }); return }
+    if (!lines.length) { toast({ kind: 'err', title: t(lang, 'nothing_to_split') }); return }
     gen.reset(); gen.start(buildItems(lines), s.concurrent)
   }
 
@@ -110,16 +110,16 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
     const dl = (blob: Blob, name: string) => { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = name; a.click(); URL.revokeObjectURL(u) }
     if (type === 'merge') {
       const lines = splitText()
-      if (!lines.length) { toast({ kind: 'err', title: lang === 'en' ? 'Nothing to export' : 'Chưa có nội dung' }); return }
+      if (!lines.length) { toast({ kind: 'err', title: t(lang, 'nothing_to_export') }); return }
       const va = voiceArgs()
-      toast({ kind: 'info', title: lang === 'en' ? 'Rendering merged audio…' : 'Đang dựng file gộp…' })
+      toast({ kind: 'info', title: t(lang, 'rendering_merged') })
       try {
         const blob = await api.tts({ text: lines.join(' '), language: LANG_NAME[language], voiceId: va.voiceId, instruct: va.instruct, settings: s, format: fmt as any })
         dl(blob, `vonia_merged.${fmt}`)
       } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) }
     } else {
       const done = gen.rows.filter(r => r.state === 'done' && r.blob)
-      if (!done.length) { toast({ kind: 'err', title: lang === 'en' ? 'Generate first' : 'Hãy tạo trước' }); return }
+      if (!done.length) { toast({ kind: 'err', title: t(lang, 'generate_first') }); return }
       done.forEach(r => dl(r.blob!, `vonia_${String(r.id).padStart(2, '0')}.wav`))
     }
     if (srt && gen.rows.length) {
@@ -154,7 +154,7 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
         <div>
           <div className="stage-head">
             <span className="st-title"><Icon name="type" size={17} style={{ color: 'var(--accent)' }} />{t(lang, 'text_content')}</span>
-            <span className="charcount tnum">{text.length} {lang === 'en' ? 'chars' : 'ký tự'}</span>
+            <span className="charcount tnum">{text.length} {t(lang, 'chars')}</span>
           </div>
           <textarea className="bigtext" value={text} onChange={e => setText(e.target.value)} placeholder={t(lang, 'tts_text_ph')} />
         </div>
@@ -164,9 +164,9 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
             <span className="field-label" style={{ margin: 0 }}>{t(lang, 'split_style')}</span>
             <Select width={200} value={split} onChange={setSplit} options={[
               { value: 'period', label: t(lang, 'split_auto') },
-              { value: 'newline', label: lang === 'en' ? 'By line break' : 'Theo dòng' },
-              { value: 'comma', label: lang === 'en' ? 'By comma' : 'Theo dấu phẩy' },
-              { value: 'none', label: lang === 'en' ? 'No split' : 'Không tách' }]} />
+              { value: 'newline', label: t(lang, 'split_newline') },
+              { value: 'comma', label: t(lang, 'split_comma') },
+              { value: 'none', label: t(lang, 'split_none') }]} />
           </div>
           <div className="row gap10">
             <Btn variant="subtle" size="sm" icon="table" onClick={toTable}>{t(lang, 'input_table')}</Btn>
@@ -184,8 +184,8 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
               </tr></thead></table>
               <div className="empty">
                 <div className="em-art"><Icon name="type" size={34} /></div>
-                <div className="em-title">{lang === 'en' ? 'No audio yet' : 'Chưa có âm thanh'}</div>
-                <div className="em-sub">{lang === 'en' ? 'Type or import text, choose a voice, then Generate. Each line becomes a row you can play, retry or export.' : 'Nhập hoặc nhập tệp văn bản, chọn giọng rồi bấm Bắt đầu tạo. Mỗi dòng là một hàng để phát, thử lại hoặc xuất.'}</div>
+                <div className="em-title">{t(lang, 'no_audio_yet')}</div>
+                <div className="em-sub">{t(lang, 'tts_empty_sub')}</div>
                 <div className="em-steps">
                   <span className="em-step"><span className="n">1</span>{t(lang, 'step_text')}</span>
                   <span className="em-step"><span className="n">2</span>{t(lang, 'step_voice')}</span>

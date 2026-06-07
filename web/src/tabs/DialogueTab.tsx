@@ -21,7 +21,7 @@ function CastPanel({ lang, cast, setCast }: { lang: Lang; cast: CastEntry[]; set
   return (
     <Panel title={t(lang, 'cast')} icon="users" defaultOpen={true} tight>
       {cast.length === 0 ? (
-        <div className="hint">{lang === 'en' ? 'No characters yet. Click "Analyze dialogue" to detect speakers automatically.' : 'Chưa có nhân vật. Bấm "Phân tích hội thoại" để tự nhận diện người nói.'}</div>
+        <div className="hint">{t(lang, 'no_chars_hint')}</div>
       ) : cast.map(c => (
         <div key={c.name} className="row gap10">
           <span className="av" style={{ width: 30, height: 30, fontSize: 12, background: avatarColor(c.name), flexShrink: 0 }}>{c.name[0]}</span>
@@ -53,7 +53,7 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
     const pal = VOICES.map(v => v.name)
     lines.forEach((l, i) => {
       const m = l.match(/^([^:：]{1,24})[:：]\s*(.+)$/)
-      const char = m ? m[1].trim() : (lang === 'en' ? 'Narrator' : 'Người dẫn')
+      const char = m ? m[1].trim() : t(lang, 'narrator')
       const body = m ? m[2].trim() : l
       if (!chars[char]) chars[char] = pal[Object.keys(chars).length % pal.length]
       rows.push({ char, text: body, time: fmtTime(i * 3.6) })
@@ -74,19 +74,19 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
   }
 
   const analyze = () => {
-    if (!text.trim()) { toast({ kind: 'err', title: lang === 'en' ? 'Paste a dialogue first' : 'Hãy dán kịch bản hội thoại' }); return }
+    if (!text.trim()) { toast({ kind: 'err', title: t(lang, 'paste_dialogue_first') }); return }
     const { cast: c } = parse()
     setCast(c)
-    toast({ kind: 'good', title: lang === 'en' ? `Detected ${c.length} speakers` : `Đã nhận diện ${c.length} nhân vật` })
+    toast({ kind: 'good', title: t(lang, 'detected_speakers').replace('{n}', String(c.length)) })
   }
   const start = () => {
-    if (!text.trim()) { toast({ kind: 'err', title: lang === 'en' ? 'Paste a dialogue first' : 'Hãy dán kịch bản hội thoại' }); return }
+    if (!text.trim()) { toast({ kind: 'err', title: t(lang, 'paste_dialogue_first') }); return }
     const { rows, cast: c } = parse()
     const castList = cast.length ? cast : c
     if (!cast.length) setCast(c)
     setPlaySrc(null)
     gen.start(buildItems(rows, castList), s.concurrent)
-    toast({ kind: 'info', title: lang === 'en' ? 'Generating dialogue…' : 'Đang tạo hội thoại…' })
+    toast({ kind: 'info', title: t(lang, 'generating_dialogue') })
   }
 
   return (
@@ -134,8 +134,8 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
               </tr></thead></table>
               <div className="empty">
                 <div className="em-art"><Icon name="message" size={34} /></div>
-                <div className="em-title">{lang === 'en' ? 'Build a multi-voice scene' : 'Dựng cảnh nhiều giọng'}</div>
-                <div className="em-sub">{lang === 'en' ? 'Paste a script as "Name: line", click Analyze to auto-assign voices, then Generate.' : 'Dán kịch bản dạng "Tên: lời thoại", bấm Phân tích để tự gán giọng, rồi Bắt đầu tạo.'}</div>
+                <div className="em-title">{t(lang, 'dialogue_build_title')}</div>
+                <div className="em-sub">{t(lang, 'dialogue_empty_sub')}</div>
                 <div className="em-steps">
                   <span className="em-step"><span className="n">1</span>{t(lang, 'step_paste')}</span>
                   <span className="em-step"><span className="n">2</span>{t(lang, 'analyze')}</span>

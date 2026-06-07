@@ -40,7 +40,7 @@ export function EnvTab({ lang }: { lang: Lang }) {
                 <span className="d" />{ready ? t(lang, 'on_device') : t(lang, 'not_on_device')}
               </span>
             </div>
-            <div className="hint mono">{lang === 'en' ? 'Model' : 'Mô hình'}: {info?.model || health?.model || 'k2-fsa/OmniVoice'} · {info?.sampling_rate || 24000} Hz</div>
+            <div className="hint mono">{t(lang, 'model_label')}: {info?.model || health?.model || 'k2-fsa/OmniVoice'} · {info?.sampling_rate || 24000} Hz</div>
           </div>
           <div className="row gap10">
             <Btn variant="ghost" icon="refresh" onClick={() => { api.health().then(setHealth).catch(() => {}); api.info().then(setInfo).catch(() => {}) }}>{t(lang, 'refresh')}</Btn>

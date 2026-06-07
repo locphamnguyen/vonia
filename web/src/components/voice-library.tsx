@@ -25,9 +25,9 @@ function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loadi
         <div className="vdesc">{lang === 'en' ? (v.en || '') : (v.vi || '')}</div>
       </span>
       {onDelete
-        ? <button className="vplay" title={lang === 'en' ? 'Delete' : 'Xóa'} onClick={(e) => { e.stopPropagation(); onDelete() }}><Icon name="trash" size={14} /></button>
+        ? <button className="vplay" title={t(lang, 'delete')} onClick={(e) => { e.stopPropagation(); onDelete() }}><Icon name="trash" size={14} /></button>
         : <button className={'vplay' + (playing ? ' playing' : '') + (loading ? ' loading' : '')}
-            title={lang === 'en' ? 'Preview' : 'Nghe thử'}
+            title={t(lang, 'listen')}
             onClick={(e) => { e.stopPropagation(); onPlay() }}>
             <Icon name={loading ? 'loader' : (playing ? 'pause' : 'play')} size={14} fill={!playing && !loading} />
           </button>}

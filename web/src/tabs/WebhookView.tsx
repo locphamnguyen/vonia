@@ -26,7 +26,6 @@ export function WebhookView({ lang, starred, onStar }: { lang: Lang; starred: Se
   const [lq, setLq] = useState('')
   const [ok, setOk] = useState<boolean | null>(null)
   const base = window.location.origin
-  const en = lang === 'en'
 
   useEffect(() => {
     let live = true
@@ -45,18 +44,18 @@ export function WebhookView({ lang, starred, onStar }: { lang: Lang; starred: Se
   "language": "Vietnamese",
   "response_format": "wav"
 }`
-  const curl = `# ${en ? 'List registered voices' : 'Liệt kê giọng đã đăng ký'}
+  const curl = `# ${t(lang, 'wh_list_voices')}
 curl ${base}/v1/voices
 
-# ${en ? 'List preset voices' : 'Liệt kê giọng preset'}
+# ${t(lang, 'wh_list_presets')}
 curl ${base}/v1/presets
 
-# ${en ? 'Synthesize (REST)' : 'Tổng hợp (REST)'} -> out.wav
+# ${t(lang, 'wh_synth_rest')} -> out.wav
 curl -X POST ${base}/tts \\
   -H "Content-Type: application/json" \\
   -d '{"text":"Hello world","voice_id":"<id>","response_format":"wav"}' -o out.wav
 
-# ${en ? 'OpenAI-compatible' : 'Tương thích OpenAI'} -> out.mp3
+# ${t(lang, 'wh_openai_compat')} -> out.mp3
 curl -X POST ${base}/v1/audio/speech \\
   -H "Content-Type: application/json" \\
   -d '{"model":"k2-fsa/OmniVoice","input":"Hello","voice":"<id>","response_format":"mp3"}' -o out.mp3`
@@ -69,36 +68,36 @@ curl -X POST ${base}/v1/audio/speech \\
           <span className="st-title" style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em' }}>Webhook API</span>
           <span className="badge accent">Beta</span>
         </div>
-        <div className="hint" style={{ fontSize: 13 }}>{en ? 'Let external tools (n8n, Zapier, scripts…) generate voices via this REST API.' : 'Cho phép công cụ ngoài (n8n, Zapier, script…) tạo giọng nói qua REST API này.'}</div>
+        <div className="hint" style={{ fontSize: 13 }}>{t(lang, 'wh_intro')}</div>
       </div>
 
       {/* connection */}
       <div className="card" style={{ padding: '18px 20px' }}>
-        <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 16 }}><Icon name="zap" size={14} />{en ? 'API connection' : 'Kết nối API'}</div>
+        <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 16 }}><Icon name="zap" size={14} />{t(lang, 'wh_api_connection')}</div>
         <div className="row between wrap gap14">
           <div className="row wrap gap14" style={{ flex: 1, minWidth: 280 }}>
             <span className="row gap8" style={{ fontWeight: 600, fontSize: 13.5 }}>
               <span className={'server-dot ' + (ok ? 'on' : 'off')} />
-              {ok == null ? (en ? 'Checking…' : 'Đang kiểm tra…') : ok ? (en ? 'Connected' : 'Đã kết nối') : (en ? 'Disconnected' : 'Mất kết nối')}
+              {ok == null ? t(lang, 'checking') : ok ? t(lang, 'connected') : t(lang, 'disconnected')}
             </span>
             <a href={base} target="_blank" rel="noreferrer" className="mono" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: 13 }}>{base}</a>
           </div>
-          <Btn variant="subtle" icon="copy" onClick={() => copy(base, en ? 'Base URL copied' : 'Đã sao chép base URL')}>{en ? 'Copy base URL' : 'Sao chép base URL'}</Btn>
+          <Btn variant="subtle" icon="copy" onClick={() => copy(base, t(lang, 'base_url_copied'))}>{t(lang, 'copy_base_url')}</Btn>
         </div>
       </div>
 
       {/* guide */}
       <div className="card" style={{ padding: '18px 20px' }}>
-        <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 16 }}><Icon name="info" size={14} />{en ? 'How to use' : 'Hướng dẫn sử dụng'}</div>
-        <div className="banner info" style={{ marginBottom: 16 }}><Icon name="info" size={16} className="bico" /><span>{en ? 'No API key required by default. The server processes one generation at a time on the GPU.' : 'Mặc định không cần API key. Server xử lý lần lượt một yêu cầu trên GPU.'}</span></div>
+        <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 16 }}><Icon name="info" size={14} />{t(lang, 'how_to_use')}</div>
+        <div className="banner info" style={{ marginBottom: 16 }}><Icon name="info" size={16} className="bico" /><span>{t(lang, 'wh_no_key')}</span></div>
         <div className="stack gap14">
           <div>
             <div className="field-label">Body Request — POST /tts (JSON)</div>
-            <CodeBlock onCopy={() => copy(jsonBody, en ? 'JSON copied' : 'Đã copy JSON')}>{jsonBody}</CodeBlock>
+            <CodeBlock onCopy={() => copy(jsonBody, t(lang, 'json_copied'))}>{jsonBody}</CodeBlock>
           </div>
           <div>
-            <div className="field-label">{en ? 'cURL examples' : 'Ví dụ cURL'}</div>
-            <CodeBlock onCopy={() => copy(curl, en ? 'cURL copied' : 'Đã copy cURL')}>{curl}</CodeBlock>
+            <div className="field-label">{t(lang, 'curl_examples')}</div>
+            <CodeBlock onCopy={() => copy(curl, t(lang, 'curl_copied'))}>{curl}</CodeBlock>
           </div>
         </div>
       </div>
@@ -106,14 +105,14 @@ curl -X POST ${base}/v1/audio/speech \\
       {/* voice store + languages */}
       <div className="wh-grid">
         <div className="card" style={{ padding: '16px 18px' }}>
-          <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 12 }}><Icon name="mic" size={14} />{en ? 'Preset voices' : 'Giọng preset'}</div>
-          <div className="search" style={{ marginBottom: 10 }}><Icon name="search" size={15} /><input value={vq} onChange={e => setVq(e.target.value)} placeholder={en ? 'Search by name or ID…' : 'Tìm theo tên hoặc ID…'} /></div>
+          <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 12 }}><Icon name="mic" size={14} />{t(lang, 'wh_preset_voices')}</div>
+          <div className="search" style={{ marginBottom: 10 }}><Icon name="search" size={15} /><input value={vq} onChange={e => setVq(e.target.value)} placeholder={t(lang, 'search_name_id')} /></div>
           <div className="wh-table-wrap">
             <table className="rtable">
-              <thead><tr><th style={{ width: 130 }}>ID</th><th>{en ? 'Name' : 'Tên'}</th><th style={{ width: 60 }}>{en ? 'Fav' : 'Sao'}</th></tr></thead>
+              <thead><tr><th style={{ width: 130 }}>ID</th><th>{t(lang, 'col_name')}</th><th style={{ width: 60 }}>{t(lang, 'col_fav')}</th></tr></thead>
               <tbody>
                 {presets.map(p => (
-                  <tr key={p.id} className="copyrow" onDoubleClick={() => copy(p.id, (en ? 'Copied ' : 'Đã copy ') + p.id)}>
+                  <tr key={p.id} className="copyrow" onDoubleClick={() => copy(p.id, t(lang, 'copied_prefix') + p.id)}>
                     <td className="tcode" style={{ color: 'var(--accent)' }}>{p.id}</td>
                     <td>{p.name} <span className="faint" style={{ fontSize: 11.5 }}>· {p.instruct}</span></td>
                     <td><span className={'star' + (starred.has(p.name) ? ' on' : '')} style={{ display: 'inline-flex' }} onClick={(e) => { e.stopPropagation(); onStar(p.name) }}><Icon name="star" size={15} fill={starred.has(p.name)} /></span></td>
@@ -122,18 +121,18 @@ curl -X POST ${base}/v1/audio/speech \\
               </tbody>
             </table>
           </div>
-          <div className="hint" style={{ marginTop: 8 }}>💡 {en ? 'Double-click a row to copy its preset id (use as a voice-design instruct).' : 'Nháy đúp một dòng để copy preset id.'}</div>
+          <div className="hint" style={{ marginTop: 8 }}>💡 {t(lang, 'wh_preset_hint')}</div>
         </div>
 
         <div className="card" style={{ padding: '16px 18px' }}>
-          <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 12 }}><Icon name="globe" size={14} />{en ? 'Languages' : 'Ngôn ngữ'}</div>
-          <div className="search" style={{ marginBottom: 10 }}><Icon name="search" size={15} /><input value={lq} onChange={e => setLq(e.target.value)} placeholder={en ? 'Search name or ISO code…' : 'Tìm theo tên hoặc mã ISO…'} /></div>
+          <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 12 }}><Icon name="globe" size={14} />{t(lang, 'languages')}</div>
+          <div className="search" style={{ marginBottom: 10 }}><Icon name="search" size={15} /><input value={lq} onChange={e => setLq(e.target.value)} placeholder={t(lang, 'search_name_iso')} /></div>
           <div className="wh-table-wrap">
             <table className="rtable">
-              <thead><tr><th>{en ? 'Name (use this value)' : 'Tên (dùng giá trị này)'}</th><th style={{ width: 90 }}>{en ? 'ISO' : 'Mã ISO'}</th></tr></thead>
+              <thead><tr><th>{t(lang, 'col_name_use')}</th><th style={{ width: 90 }}>{t(lang, 'col_iso')}</th></tr></thead>
               <tbody>
                 {langs.map(([n, c]) => (
-                  <tr key={c} className="copyrow" onDoubleClick={() => copy(n, (en ? 'Copied ' : 'Đã copy ') + n)}>
+                  <tr key={c} className="copyrow" onDoubleClick={() => copy(n, t(lang, 'copied_prefix') + n)}>
                     <td className="mono" style={{ fontSize: 12.5 }}>{n}</td>
                     <td className="tcode" style={{ color: 'var(--accent)' }}>{c}</td>
                   </tr>
@@ -141,7 +140,7 @@ curl -X POST ${base}/v1/audio/speech \\
               </tbody>
             </table>
           </div>
-          <div className="hint" style={{ marginTop: 8 }}>💡 {en ? 'Double-click a name to copy — use it for the language field.' : 'Nháy đúp tên để copy — dùng cho field language.'}</div>
+          <div className="hint" style={{ marginTop: 8 }}>💡 {t(lang, 'wh_lang_hint')}</div>
         </div>
       </div>
     </div>

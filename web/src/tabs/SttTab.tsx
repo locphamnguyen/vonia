@@ -29,9 +29,9 @@ export function SttTab({ lang }: { lang: Lang }) {
   const toast = useToast()
 
   const start = async () => {
-    if (!file) { toast({ kind: 'err', title: lang === 'en' ? 'Choose a file first' : 'Hãy chọn tệp trước' }); return }
+    if (!file) { toast({ kind: 'err', title: t(lang, 'choose_file_first') }); return }
     setRunning(true); setProgress(10); setRows([])
-    toast({ kind: 'info', title: lang === 'en' ? 'Transcribing…' : 'Đang nhận dạng…', desc: STT_MODELS.find(m => m.id === model)?.label })
+    toast({ kind: 'info', title: t(lang, 'transcribing'), desc: STT_MODELS.find(m => m.id === model)?.label })
     try {
       const r = await api.stt(file, model, audioLang)
       const segs: Seg[] = (r.segments || []).map((c, i) => ({
@@ -40,14 +40,14 @@ export function SttTab({ lang }: { lang: Lang }) {
       }))
       setRows(segs.length ? segs : [{ id: 1, start: 0, end: null, time: '00:00', text: r.text }])
       setProgress(100)
-      toast({ kind: 'good', title: lang === 'en' ? 'Transcription complete' : 'Đã trích xuất xong' })
+      toast({ kind: 'good', title: t(lang, 'transcription_complete') })
     } catch (e: any) {
       toast({ kind: 'err', title: String(e?.message || e) })
     } finally { setRunning(false) }
   }
 
   const doExport = () => {
-    if (!rows.length) { toast({ kind: 'err', title: lang === 'en' ? 'Nothing to export' : 'Chưa có kết quả' }); return }
+    if (!rows.length) { toast({ kind: 'err', title: t(lang, 'nothing_to_export') }); return }
     let content = '', ext = exportFmt
     if (exportFmt === 'txt') content = rows.map(r => r.text).join('\n')
     else if (exportFmt === 'json') content = JSON.stringify(rows.map(r => ({ start: r.start, end: r.end, text: r.text })), null, 2)
@@ -90,7 +90,7 @@ export function SttTab({ lang }: { lang: Lang }) {
               renderOption={(o: any) => <span className="row gap10">{o.flag ? <span className="flag">{o.flag}</span> : <Icon name="sparkles" size={14} style={{ color: 'var(--accent)' }} />}{o.label}</span>} />
           </div>
 
-          <div className="banner info" style={{ marginTop: 'auto' }}><Icon name="info" size={16} className="bico" /><span>{lang === 'en' ? 'Larger models are more accurate but need more VRAM and time. Turbo is a great balance for most machines.' : 'Model lớn hơn cho độ chính xác cao hơn nhưng cần nhiều VRAM và thời gian hơn. Turbo cân bằng tốt cho đa số máy.'}</span></div>
+          <div className="banner info" style={{ marginTop: 'auto' }}><Icon name="info" size={16} className="bico" /><span>{t(lang, 'stt_model_hint')}</span></div>
         </div>
         <div className="railfoot stack gap10">
           <GenBar lang={lang} running={running} status={running ? 'run' : (rows.length ? 'done' : 'idle')} progress={progress} onStart={start} onStop={() => setRunning(false)} />
@@ -104,7 +104,7 @@ export function SttTab({ lang }: { lang: Lang }) {
       <div className="stage">
         <div className="stage-head">
           <span className="st-title"><Icon name="filetext" size={17} style={{ color: 'var(--accent)' }} />{t(lang, 'extract_result')}</span>
-          {rows.length > 0 && <Btn variant="ghost" size="sm" icon="copy" onClick={() => { navigator.clipboard?.writeText(rows.map(r => r.text).join('\n')); toast({ kind: 'good', title: lang === 'en' ? 'Copied' : 'Đã sao chép' }) }}>{t(lang, 'copy_all')}</Btn>}
+          {rows.length > 0 && <Btn variant="ghost" size="sm" icon="copy" onClick={() => { navigator.clipboard?.writeText(rows.map(r => r.text).join('\n')); toast({ kind: 'good', title: t(lang, 'copied') }) }}>{t(lang, 'copy_all')}</Btn>}
         </div>
         <div className="results-wrap">
           {rows.length > 0 ? (
@@ -123,7 +123,7 @@ export function SttTab({ lang }: { lang: Lang }) {
               <table className="rtable"><thead><tr><th className="num">#</th><th style={{ width: 150 }}>{t(lang, 'col_time')}</th><th>{t(lang, 'col_content')}</th></tr></thead></table>
               <div className="empty">
                 <div className="em-art"><Icon name="filetext" size={34} /></div>
-                <div className="em-title">{lang === 'en' ? 'No transcript yet' : 'Chưa có kết quả'}</div>
+                <div className="em-title">{t(lang, 'no_transcript')}</div>
                 <div className="em-sub">{t(lang, 'stt_empty')}</div>
                 <div className="em-steps">
                   <span className="em-step"><span className="n">1</span>{t(lang, 'step_file')}</span>

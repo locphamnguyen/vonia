@@ -90,7 +90,7 @@ export function ExportPanel({ lang, onExport }: { lang: Lang; onExport?: (fmt: s
       <Toggle on={srt} onChange={setSrt}>{t(lang, 'export_srt')}</Toggle>
       <Btn variant="primary" icon="save" block onClick={() => {
         if (onExport) onExport(fmt, type, srt)
-        else toast({ kind: 'good', title: lang === 'en' ? 'Audio exported' : 'Đã xuất âm thanh' })
+        else toast({ kind: 'good', title: t(lang, 'audio_exported') })
       }}>{t(lang, 'export')}</Btn>
     </Panel>
   )

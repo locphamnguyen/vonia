@@ -37,7 +37,7 @@ function LicenseTab({ lang }: { lang: Lang }) {
         <div className="card" style={{ padding: '22px 20px', textAlign: 'center', borderColor: 'var(--accent-line)', background: 'var(--grad-soft)' }}>
           <div style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--accent)' }}>{t(lang, 'plan_studio')}</div>
           <div style={{ margin: '8px 0 16px' }}><span style={{ fontSize: 24, fontWeight: 800 }}>100.000đ</span> <span className="muted" style={{ fontSize: 13 }}>{t(lang, 'per_days')}</span></div>
-          <Btn variant="primary" block icon="bolt" onClick={() => toast({ kind: 'good', title: lang === 'en' ? 'Opening checkout…' : 'Đang mở thanh toán…' })}>{t(lang, 'upgrade_now')}</Btn>
+          <Btn variant="primary" block icon="bolt" onClick={() => toast({ kind: 'good', title: t(lang, 'opening_checkout') })}>{t(lang, 'upgrade_now')}</Btn>
         </div>
       </div>
       <div className="card" style={{ padding: '14px 16px' }}>
@@ -86,10 +86,10 @@ function GeneralTab({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
         <div className="card" style={{ padding: 18 }}>
           <div className="stack gap14">
             <div className="row between gap14"><span className="field-label" style={{ margin: 0, width: 160 }}>{t(lang, 'naming_style')}</span>
-              <Select value={naming} onChange={setNaming} options={[{ value: 'default', label: lang === 'en' ? 'Default ({row}_{prompt})' : 'Mặc định ({row}_{prompt})' }, { value: 'date', label: lang === 'en' ? 'Date + index' : 'Ngày + số thứ tự' }, { value: 'voice', label: lang === 'en' ? 'Voice + index' : 'Tên giọng + số' }]} /></div>
-            <div className="row between gap14"><span className="field-label" style={{ margin: 0, width: 160 }}>{t(lang, 'prefix')}</span><input className="input" placeholder={lang === 'en' ? 'Enter prefix' : 'Nhập tiền tố'} /></div>
+              <Select value={naming} onChange={setNaming} options={[{ value: 'default', label: t(lang, 'naming_default') }, { value: 'date', label: t(lang, 'naming_date') }, { value: 'voice', label: t(lang, 'naming_voice') }]} /></div>
+            <div className="row between gap14"><span className="field-label" style={{ margin: 0, width: 160 }}>{t(lang, 'prefix')}</span><input className="input" placeholder={t(lang, 'enter_prefix')} /></div>
             <div className="row between gap14"><span className="field-label" style={{ margin: 0, width: 160 }}>{t(lang, 'separator')}</span>
-              <Select value={sep} onChange={setSep} options={[{ value: 'underscore', label: lang === 'en' ? 'Underscore (_)' : 'Gạch dưới (_)' }, { value: 'dash', label: 'Dash (-)' }, { value: 'space', label: lang === 'en' ? 'Space' : 'Khoảng trắng' }]} /></div>
+              <Select value={sep} onChange={setSep} options={[{ value: 'underscore', label: t(lang, 'sep_underscore') }, { value: 'dash', label: 'Dash (-)' }, { value: 'space', label: t(lang, 'sep_space') }]} /></div>
             <div className="divider" />
             <div className="row gap10"><span className="muted" style={{ fontSize: 13 }}>{t(lang, 'preview')}:</span>
               <span className="badge good mono" style={{ padding: '7px 12px' }}><Icon name="file" size={13} />1_Xin_chao_cac_ban.wav</span></div>

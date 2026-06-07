@@ -23,8 +23,8 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
   const toast = useToast()
 
   const start = () => {
-    if (!file) { toast({ kind: 'err', title: lang === 'en' ? 'Choose a sample audio' : 'Hãy chọn tệp âm thanh mẫu' }); return }
-    if (!text.trim()) { toast({ kind: 'err', title: lang === 'en' ? 'Enter text to preview' : 'Hãy nhập nội dung để thử giọng' }); return }
+    if (!file) { toast({ kind: 'err', title: t(lang, 'choose_sample_audio') }); return }
+    if (!text.trim()) { toast({ kind: 'err', title: t(lang, 'enter_preview_text') }); return }
     setPlaySrc(null)
     gen.start([{
       text: text.slice(0, 350),
@@ -33,29 +33,29 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
         refAudioFile: file, refText: sampleText || undefined, settings: s, format: 'wav',
       }),
     }], 1)
-    toast({ kind: 'info', title: lang === 'en' ? 'Cloning voice…' : 'Đang sao chép giọng…' })
+    toast({ kind: 'info', title: t(lang, 'cloning_voice') })
   }
 
   const aiSuggest = async () => {
-    if (!file) { toast({ kind: 'err', title: lang === 'en' ? 'Choose a sample audio first' : 'Hãy chọn tệp mẫu trước' }); return }
-    toast({ kind: 'info', title: lang === 'en' ? 'Transcribing sample…' : 'Đang nhận dạng mẫu…' })
+    if (!file) { toast({ kind: 'err', title: t(lang, 'choose_sample_first') }); return }
+    toast({ kind: 'info', title: t(lang, 'transcribing_sample') })
     try {
       // Auto-detect the sample's language (do NOT force the synthesis language —
       // the reference audio may be spoken in a different language than the target).
       const r = await api.stt(file, 'turbo')
       setSampleText(r.text)
-      toast({ kind: 'good', title: lang === 'en' ? 'Transcript filled' : 'Đã điền văn bản mẫu' })
+      toast({ kind: 'good', title: t(lang, 'transcript_filled') })
     } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) }
   }
 
   const onSave = async () => {
-    if (!file) { toast({ kind: 'err', title: lang === 'en' ? 'Choose a sample audio first' : 'Hãy chọn tệp mẫu trước' }); return }
-    const name = window.prompt(lang === 'en' ? 'Voice name:' : 'Tên giọng:')
+    if (!file) { toast({ kind: 'err', title: t(lang, 'choose_sample_first') }); return }
+    const name = window.prompt(t(lang, 'voice_name_prompt'))
     if (!name) return
     try {
       await api.registerVoice(name, file, sampleText || undefined)
       await store.refresh()
-      toast({ kind: 'good', title: lang === 'en' ? 'Voice saved' : 'Đã lưu giọng', desc: name })
+      toast({ kind: 'good', title: t(lang, 'voice_saved'), desc: name })
     } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) }
   }
 
@@ -115,7 +115,7 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
               <div className="empty" style={{ minHeight: 180 }}>
                 <div className="em-art"><Icon name="audio" size={34} /></div>
                 <div className="em-title">{t(lang, 'no_audio')}</div>
-                <div className="em-sub">{lang === 'en' ? 'Add a 5–10s sample, type the matching transcript, then preview with a short sentence above.' : 'Thêm mẫu 5–10 giây, gõ đúng văn bản tương ứng, rồi thử bằng một câu ngắn ở trên.'}</div>
+                <div className="em-sub">{t(lang, 'clone_empty_sub')}</div>
                 <div className="em-steps">
                   <span className="em-step"><span className="n">1</span>{t(lang, 'sample_audio').split('(')[0]}</span>
                   <span className="em-step"><span className="n">2</span>{t(lang, 'sample_text')}</span>
@@ -130,7 +130,7 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
 
         <VoiceStore lang={lang} selected={selVoice} onSelect={setSelVoice} starred={starred} onStar={onStar}
           yourVoices={store.userUIVoices} onSave={onSave}
-          onDeleteVoice={async (v) => { if (v.id) { try { await api.deleteVoice(v.id); await store.refresh(); toast({ kind: 'info', title: lang === 'en' ? 'Voice deleted' : 'Đã xóa giọng' }) } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) } } }} />
+          onDeleteVoice={async (v) => { if (v.id) { try { await api.deleteVoice(v.id); await store.refresh(); toast({ kind: 'info', title: t(lang, 'voice_deleted') }) } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) } } }} />
       </div>
     </div>
   )

@@ -43,9 +43,9 @@ function Sidebar({ lang, nav, setNav, onSettings }: any) {
           <Icon name="settings" size={18} className="ico" />{t(lang, 'nav_settings')}
         </button>
         <div className="social-row">
-          <button className="social-btn" title="Discord"><Icon name="discord" size={17} /></button>
-          <button className="social-btn" title="YouTube"><Icon name="youtube" size={17} /></button>
-          <button className="social-btn" title="Website"><Icon name="globe" size={17} /></button>
+          <button className="social-btn" title="Discord" aria-label="Discord"><Icon name="discord" size={17} /></button>
+          <button className="social-btn" title="YouTube" aria-label="YouTube"><Icon name="youtube" size={17} /></button>
+          <button className="social-btn" title="Website" aria-label="Website"><Icon name="globe" size={17} /></button>
         </div>
       </div>
     </aside>

@@ -170,6 +170,11 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
                 <div className="em-art"><Icon name="type" size={34} /></div>
                 <div className="em-title">{lang === 'en' ? 'No audio yet' : 'Chưa có âm thanh'}</div>
                 <div className="em-sub">{lang === 'en' ? 'Type or import text, choose a voice, then Generate. Each line becomes a row you can play, retry or export.' : 'Nhập hoặc nhập tệp văn bản, chọn giọng rồi bấm Bắt đầu tạo. Mỗi dòng là một hàng để phát, thử lại hoặc xuất.'}</div>
+                <div className="em-steps">
+                  <span className="em-step"><span className="n">1</span>{t(lang, 'step_text')}</span>
+                  <span className="em-step"><span className="n">2</span>{t(lang, 'step_voice')}</span>
+                  <span className="em-step"><span className="n">3</span>{t(lang, 'start')}</span>
+                </div>
               </div>
             </>
           )}

@@ -125,6 +125,11 @@ export function SttTab({ lang }: { lang: Lang }) {
                 <div className="em-art"><Icon name="filetext" size={34} /></div>
                 <div className="em-title">{lang === 'en' ? 'No transcript yet' : 'Chưa có kết quả'}</div>
                 <div className="em-sub">{t(lang, 'stt_empty')}</div>
+                <div className="em-steps">
+                  <span className="em-step"><span className="n">1</span>{t(lang, 'step_file')}</span>
+                  <span className="em-step"><span className="n">2</span>{t(lang, 'step_model')}</span>
+                  <span className="em-step"><span className="n">3</span>{t(lang, 'start')}</span>
+                </div>
               </div>
             </>
           )}

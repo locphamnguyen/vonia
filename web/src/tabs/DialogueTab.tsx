@@ -136,6 +136,11 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
                 <div className="em-art"><Icon name="message" size={34} /></div>
                 <div className="em-title">{lang === 'en' ? 'Build a multi-voice scene' : 'Dựng cảnh nhiều giọng'}</div>
                 <div className="em-sub">{lang === 'en' ? 'Paste a script as "Name: line", click Analyze to auto-assign voices, then Generate.' : 'Dán kịch bản dạng "Tên: lời thoại", bấm Phân tích để tự gán giọng, rồi Bắt đầu tạo.'}</div>
+                <div className="em-steps">
+                  <span className="em-step"><span className="n">1</span>{t(lang, 'step_paste')}</span>
+                  <span className="em-step"><span className="n">2</span>{t(lang, 'analyze')}</span>
+                  <span className="em-step"><span className="n">3</span>{t(lang, 'start')}</span>
+                </div>
                 <div className="row gap10" style={{ marginTop: 4 }}>
                   <Btn variant="subtle" size="sm" icon="list" onClick={() => setText(SAMPLE_DIALOGUE)}>{t(lang, 'dialogue_tpl')}</Btn>
                 </div>

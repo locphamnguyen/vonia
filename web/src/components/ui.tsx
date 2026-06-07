@@ -268,12 +268,12 @@ export function AudioPlayer({ src }: { src?: string | null }) {
     if (a.paused) { a.play(); setPlaying(true) } else { a.pause(); setPlaying(false) }
   }
   return (
-    <div className="player">
+    <div className={'player' + (hasAudio ? '' : ' is-empty')}>
       <audio ref={audioRef} src={src || undefined}
         onTimeUpdate={e => setPos((e.target as HTMLAudioElement).currentTime)}
         onLoadedMetadata={e => setDur((e.target as HTMLAudioElement).duration)}
         onEnded={() => { setPlaying(false); setPos(0) }} />
-      <button className="pp" onClick={toggle} disabled={!hasAudio}>
+      <button className="pp" onClick={toggle} disabled={!hasAudio} aria-label={playing ? 'Pause' : 'Play'}>
         <Icon name={playing ? 'pause' : 'play'} size={18} fill={!playing} />
       </button>
       <span className="ptime">{fmtSec(pos)}</span>

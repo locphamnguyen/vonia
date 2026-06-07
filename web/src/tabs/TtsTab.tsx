@@ -3,6 +3,7 @@ import { Icon, Btn, Select, Segmented, Panel, AudioPlayer, useToast } from '../c
 import { LanguageField, AdvancedSettings, AudioTuning, BatchPanel, ExportPanel, useSettings, DEFAULTS } from '../components/panels'
 import { VoiceList } from '../components/voice-library'
 import { ResultsTable, GenBar } from '../components/results'
+import { PronunciationModal } from '../components/PronunciationModal'
 import { useGenerator, fmtTime, type GenRow } from '../hooks/useGenerator'
 import { useVoices } from '../app/store'
 import { t, type Lang } from '../lib/i18n'
@@ -71,6 +72,7 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
   const [text, setText] = useState('')
   const [split, setSplit] = useState('period')
   const [playSrc, setPlaySrc] = useState<string | null>(null)
+  const [showPron, setShowPron] = useState(false)
   const gen = useGenerator()
   const store = useVoices()
   const toast = useToast()
@@ -169,7 +171,9 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
               { value: 'none', label: t(lang, 'split_none') }]} />
           </div>
           <div className="row gap10">
+            <Btn variant="subtle" size="sm" icon="volume" onClick={() => setShowPron(true)}>{t(lang, 'speak')}</Btn>
             <Btn variant="subtle" size="sm" icon="table" onClick={toTable}>{t(lang, 'input_table')}</Btn>
+            <Btn variant="subtle" size="sm" icon="upload" onClick={() => toast({ kind: 'info', title: t(lang, 'import_file') })}>{t(lang, 'import_file')}</Btn>
           </div>
         </div>
 
@@ -198,6 +202,8 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
 
         <AudioPlayer src={playSrc} />
       </div>
+      {showPron && <PronunciationModal lang={lang} text={text} onClose={() => setShowPron(false)}
+        onApply={() => toast({ kind: 'info', title: lang === 'en' ? 'Previewing…' : 'Đang phát thử…' })} />}
     </div>
   )
 }

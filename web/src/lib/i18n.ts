@@ -95,6 +95,11 @@ export const I18N: Record<Lang, Record<string, string>> = {
     wh_lang_hint: 'Nháy đúp tên để copy — dùng cho field language.',
     wh_list_voices: 'Liệt kê giọng đã đăng ký', wh_list_presets: 'Liệt kê giọng preset',
     wh_synth_rest: 'Tổng hợp (REST)', wh_openai_compat: 'Tương thích OpenAI',
+    pron_title: 'Sửa phát âm cho ký tự đặc biệt',
+    pron_sub: 'Mỗi từ chỉ cần gõ phiên âm một lần — lần sau gặp lại tool sẽ tự áp dụng (lưu theo ngôn ngữ đầu ra hiện tại).',
+    pron_found: 'Phát hiện {n} ký hiệu / từ chưa biết cách đọc',
+    col_orig: 'Gốc', col_readas: 'Đọc thành', col_appears: 'Xuất hiện ở', read_ph: 'gõ cách đọc…',
+    pron_skip: 'Bỏ qua, giữ nguyên', pron_apply: 'Áp dụng & lưu', pron_saved: 'Đã lưu phiên âm',
   },
   en: {
     nav_studio: 'Voice Studio', nav_webhook: 'Webhook', nav_settings: 'Settings',
@@ -189,6 +194,11 @@ export const I18N: Record<Lang, Record<string, string>> = {
     wh_lang_hint: 'Double-click a name to copy — use it for the language field.',
     wh_list_voices: 'List registered voices', wh_list_presets: 'List preset voices',
     wh_synth_rest: 'Synthesize (REST)', wh_openai_compat: 'OpenAI-compatible',
+    pron_title: 'Fix pronunciation for special characters',
+    pron_sub: 'Type each word’s reading once — next time the tool applies it automatically (saved per current output language).',
+    pron_found: 'Found {n} symbols / words with no known reading',
+    col_orig: 'Original', col_readas: 'Read as', col_appears: 'Appears in', read_ph: 'type reading…',
+    pron_skip: 'Skip, keep as is', pron_apply: 'Apply & save', pron_saved: 'Pronunciations saved',
   },
 }
 

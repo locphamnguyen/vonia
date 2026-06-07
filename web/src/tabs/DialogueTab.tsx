@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Icon, Btn, Select, Panel, AudioPlayer, useToast } from '../components/ui'
 import { LanguageField, AdvancedSettings, AudioTuning, BatchPanel, useSettings, DEFAULTS } from '../components/panels'
 import { ResultsTable, GenBar } from '../components/results'
+import { PronunciationModal } from '../components/PronunciationModal'
 import { useGenerator, fmtTime, type GenRow } from '../hooks/useGenerator'
 import { useVoices } from '../app/store'
 import { t, type Lang } from '../lib/i18n'
@@ -42,6 +43,7 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
   const [text, setText] = useState('')
   const [cast, setCast] = useState<CastEntry[]>([])
   const [playSrc, setPlaySrc] = useState<string | null>(null)
+  const [showPron, setShowPron] = useState(false)
   const gen = useGenerator()
   const store = useVoices()
   const toast = useToast()
@@ -119,6 +121,7 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
             <Select width={200} value="auto" onChange={() => { }} options={[{ value: 'auto', label: t(lang, 'split_auto') }]} />
           </div>
           <div className="row gap10">
+            <Btn variant="subtle" size="sm" icon="volume" onClick={() => setShowPron(true)}>{t(lang, 'speak')}</Btn>
             <Btn variant="subtle" size="sm" icon="users" onClick={analyze}>{t(lang, 'analyze')}</Btn>
           </div>
         </div>
@@ -151,6 +154,8 @@ export function DialogueTab({ lang }: { lang: Lang; starred: Set<string>; onStar
 
         <AudioPlayer src={playSrc} />
       </div>
+      {showPron && <PronunciationModal lang={lang} text={text} onClose={() => setShowPron(false)}
+        onApply={() => toast({ kind: 'info', title: lang === 'en' ? 'Previewing…' : 'Đang phát thử…' })} />}
     </div>
   )
 }

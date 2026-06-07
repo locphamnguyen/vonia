@@ -568,6 +568,18 @@ button { font-family: inherit; }
 @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.99); } }
 .modal-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .modal-head .mt { font-size: 15.5px; font-weight: 700; flex: 1; }
+/* Pronunciation normalization modal */
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.modal.modal-pron { width: min(660px, 96vw); }
+.pron-heading { display: flex; align-items: center; gap: 8px; font-size: 15.5px; font-weight: 700; }
+.pron-tablewrap { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.pron-table tbody td { vertical-align: middle; }
+.pron-table tbody tr:last-child td { border-bottom: none; }
+.pron-table tbody tr.has-reading, .pron-table tbody tr:focus-within { background: var(--accent-soft); }
+.pron-orig { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--accent); }
+.pron-table tbody tr.has-reading .pron-ctx, .pron-table tbody tr:focus-within .pron-ctx { color: var(--accent); }
+.pron-input { height: 34px; padding: 0 11px; font-size: 13px; }
+.pron-ctx { font-size: 12.5px; color: var(--text-muted); }
 .modal-tabs { display: flex; gap: 4px; padding: 10px 16px 0; border-bottom: 1px solid var(--border); }
 .modal-tab { padding: 9px 15px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: .15s; }
 .modal-tab:hover { color: var(--text); }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { AppCtx, ToastProvider, Icon } from './components/ui'
 import { t, type Lang } from './lib/i18n'
-import { VoicesProvider } from './app/store'
+import { VoicesProvider, useVoices } from './app/store'
 import { CloneTab } from './tabs/CloneTab'
 import { TtsTab } from './tabs/TtsTab'
 import { DialogueTab } from './tabs/DialogueTab'
@@ -49,6 +49,17 @@ function Sidebar({ lang, nav, setNav, onSettings }: any) {
         </div>
       </div>
     </aside>
+  )
+}
+
+function ConnectionBanner({ lang }: { lang: Lang }) {
+  const { apiOk, apiChecked } = useVoices()
+  if (!apiChecked || apiOk) return null
+  return (
+    <div className="conn-banner" role="alert">
+      <Icon name="bolt" size={15} className="ico" />
+      <span><strong>{t(lang, 'offline_title')}</strong> {t(lang, 'offline_hint')}</span>
+    </div>
   )
 }
 
@@ -114,6 +125,7 @@ export default function App() {
           <div className="app">
             <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} />
             <div className="main">
+              <ConnectionBanner lang={lang} />
               {nav === 'studio' ? (
                 <>
                   <Topbar lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} />

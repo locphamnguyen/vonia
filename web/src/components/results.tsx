@@ -7,7 +7,7 @@ import type { GenRow } from '../hooks/useGenerator'
 
 export function StatusCell({ state, lang }: { state: string; lang: Lang }) {
   const map: Record<string, [string, string]> = {
-    queued: ['idle', lang === 'en' ? 'Queued' : 'Trong hàng đợi'],
+    queued: ['idle', t(lang, 'queued')],
     processing: ['run', t(lang, 'processing')],
     done: ['done', t(lang, 'done_status')],
     error: ['err', t(lang, 'failed')],
@@ -65,8 +65,8 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
                 <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'speak')} onClick={() => onPlay && onPlay(r)}><Icon name="play" size={14} fill /></button>
                 <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'download')} onClick={() => download(r, `vonia_${String(r.id).padStart(2, '0')}.${fmt}`)}><Icon name="download" size={14} /></button>
                 {r.state === 'error'
-                  ? <button className="mini-btn" title={lang === 'en' ? 'Retry' : 'Thử lại'} onClick={() => onRetry && onRetry(r.id)}><Icon name="refresh" size={14} /></button>
-                  : <button className="mini-btn danger" disabled={r.state === 'processing'} title={lang === 'en' ? 'Delete' : 'Xóa'}><Icon name="trash" size={14} /></button>}
+                  ? <button className="mini-btn" title={t(lang, 'retry')} onClick={() => onRetry && onRetry(r.id)}><Icon name="refresh" size={14} /></button>
+                  : <button className="mini-btn danger" disabled={r.state === 'processing'} title={t(lang, 'delete')}><Icon name="trash" size={14} /></button>}
               </div>
             </td>
           </tr>
@@ -79,7 +79,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
 export function GenBar({ lang, running, status, progress, onStart, onStop, startLabel, disabled }:
   { lang: Lang; running: boolean; status: string; progress: number; onStart: () => void; onStop: () => void; startLabel?: string; disabled?: boolean }) {
   const statusText = running ? t(lang, 'generating')
-    : status === 'done' ? (lang === 'en' ? 'Completed' : 'Đã hoàn tất')
+    : status === 'done' ? t(lang, 'completed')
     : status === 'err' ? t(lang, 'failed') : t(lang, 'ready')
   return (
     <div className="stack gap10">

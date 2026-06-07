@@ -63,13 +63,22 @@ function GeneralTab({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
       <div>
         <div className="badge accent" style={{ padding: '5px 11px', marginBottom: 12 }}><Icon name="globe" size={14} />{t(lang, 'interface_lang')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
-          {langs.map((l) => (
-            <button key={l.id} className={'btn' + (l.id === lang ? ' ' : ' ghost')}
-              onClick={() => { if (l.id === 'vi' || l.id === 'en') setLang(l.id as Lang) }}
-              style={{ justifyContent: 'flex-start', padding: '12px 14px', borderColor: l.id === lang ? 'var(--accent)' : 'var(--border)', color: l.id === lang ? 'var(--accent)' : 'var(--text)' }}>
-              <span style={{ fontSize: 18 }}>{l.flag}</span>{l.label}
-            </button>
-          ))}
+          {langs.map((l) => {
+            const ready = l.id === 'vi' || l.id === 'en'  // only VI/EN are translated today
+            return (
+              <button key={l.id} className={'btn' + (l.id === lang ? ' ' : ' ghost')}
+                disabled={!ready}
+                title={ready ? l.label : t(lang, 'coming_soon')}
+                onClick={() => { if (ready) setLang(l.id as Lang) }}
+                style={{ justifyContent: 'flex-start', padding: '12px 14px', position: 'relative',
+                  borderColor: l.id === lang ? 'var(--accent)' : 'var(--border)',
+                  color: l.id === lang ? 'var(--accent)' : 'var(--text)',
+                  opacity: ready ? 1 : 0.45, cursor: ready ? 'pointer' : 'not-allowed' }}>
+                <span style={{ fontSize: 18 }}>{l.flag}</span>{l.label}
+                {!ready && <span className="badge" style={{ marginLeft: 'auto', fontSize: 9, padding: '2px 6px' }}>{t(lang, 'coming_soon')}</span>}
+              </button>
+            )
+          })}
         </div>
       </div>
       <div>

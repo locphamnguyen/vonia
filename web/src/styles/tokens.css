@@ -550,6 +550,8 @@ button { font-family: inherit; }
 .vrow .vplay { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--text-soft); border: none; cursor: pointer; flex-shrink: 0; transition: .15s; }
 .vrow .vplay:hover { background: var(--accent); color: var(--accent-ink); }
 .vrow .vplay.playing { background: var(--accent); color: var(--accent-ink); }
+.vrow .vplay.loading { background: var(--accent); color: var(--accent-ink); cursor: progress; }
+.vrow .vplay.loading svg { animation: spin .9s linear infinite; }
 
 .vempty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 30px 16px; text-align: center; color: var(--text-muted); }
 .vempty .ve-icon { width: 52px; height: 52px; border-radius: 14px; background: var(--surface-2); border: 1px dashed var(--border-strong); display: grid; place-items: center; color: var(--text-faint); }
@@ -649,3 +651,14 @@ button { font-family: inherit; }
   .vlib-cols { grid-template-columns: 1fr; }
   .vlib-col + .vlib-col { border-left: none; border-top: 1px solid var(--border); }
 }
+
+/* Backend-offline banner (driven by store apiOk poll) */
+.conn-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px;
+  background: var(--bad-soft); color: var(--bad);
+  border-bottom: 1px solid var(--bad);
+  font-size: 13px; font-weight: 500;
+}
+.conn-banner .ico { flex: none; }
+.conn-banner strong { font-weight: 700; }

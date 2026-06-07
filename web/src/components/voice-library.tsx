@@ -3,11 +3,17 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Icon, useToast } from './ui'
 import { t, type Lang } from '../lib/i18n'
 import { VOICES, avatarColor, type Voice } from '../lib/data'
+import { useVoices } from '../app/store'
+import * as api from '../lib/api'
 
-export interface UIVoice { name: string; g?: 'M' | 'F'; vi?: string; en?: string; color?: string; id?: string }
+export interface UIVoice { name: string; g?: 'M' | 'F'; vi?: string; en?: string; color?: string; id?: string; cloned?: boolean }
 
-function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, onPlay, onDelete }:
-  { v: UIVoice; lang: Lang; selected: boolean; onSelect: () => void; starred: boolean; onStar: () => void; playing: boolean; onPlay: () => void; onDelete?: () => void }) {
+// Short sentence + lightweight params used only to render a quick voice preview.
+const PREVIEW_TEXT = 'Xin chào, đây là giọng đọc thử của Vonia.'
+const PREVIEW_SETTINGS = { detail: 32, adherence: 2, speed: 1, proc: 'raw', normalize: false } as any
+
+function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loading, onPlay, onDelete }:
+  { v: UIVoice; lang: Lang; selected: boolean; onSelect: () => void; starred: boolean; onStar: () => void; playing: boolean; loading: boolean; onPlay: () => void; onDelete?: () => void }) {
   return (
     <div className={'vrow' + (selected ? ' sel' : '')} onClick={onSelect}>
       <span className={'star' + (starred ? ' on' : '')} onClick={(e) => { e.stopPropagation(); onStar() }} title="Star">
@@ -20,28 +26,72 @@ function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, onPla
       </span>
       {onDelete
         ? <button className="vplay" title={lang === 'en' ? 'Delete' : 'Xóa'} onClick={(e) => { e.stopPropagation(); onDelete() }}><Icon name="trash" size={14} /></button>
-        : <button className={'vplay' + (playing ? ' playing' : '')} onClick={(e) => { e.stopPropagation(); onPlay() }}><Icon name={playing ? 'pause' : 'play'} size={14} fill={!playing} /></button>}
+        : <button className={'vplay' + (playing ? ' playing' : '') + (loading ? ' loading' : '')}
+            title={lang === 'en' ? 'Preview' : 'Nghe thử'}
+            onClick={(e) => { e.stopPropagation(); onPlay() }}>
+            <Icon name={loading ? 'loader' : (playing ? 'pause' : 'play')} size={14} fill={!playing && !loading} />
+          </button>}
     </div>
   )
 }
 
-export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete }:
-  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void }) {
+export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete, mixedCloned, previewLang }:
+  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void; mixedCloned?: boolean; previewLang?: string }) {
   const [q, setQ] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [gender, setGender] = useState<'all' | 'M' | 'F'>('all')
+  const [starOnly, setStarOnly] = useState(false)
+  const [clonedOnly, setClonedOnly] = useState(false)
   const [playingName, setPlayingName] = useState<string | null>(null)
-  useEffect(() => { if (!playingName) return; const tm = setTimeout(() => setPlayingName(null), 2600); return () => clearTimeout(tm) }, [playingName])
+  const [loadingName, setLoadingName] = useState<string | null>(null)
+  const store = useVoices()
+  const toast = useToast()
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const cacheRef = useRef<Record<string, string>>({})
+
+  // Revoke cached preview URLs and stop audio when the list unmounts.
+  useEffect(() => () => {
+    audioRef.current?.pause()
+    Object.values(cacheRef.current).forEach(u => URL.revokeObjectURL(u))
+  }, [])
+
+  const preview = async (name: string) => {
+    const audio = audioRef.current
+    if (playingName === name) { audio?.pause(); setPlayingName(null); return }   // toggle off
+    audio?.pause(); setPlayingName(null)
+    const { voiceId, instruct } = store.resolve(name)
+    if (!voiceId && !instruct) { toast({ kind: 'err', title: t(lang, 'preview_fail') }); return }
+    try {
+      let url = cacheRef.current[name]
+      if (!url) {
+        setLoadingName(name)
+        const blob = await api.tts({ text: PREVIEW_TEXT, language: previewLang, voiceId, instruct, settings: PREVIEW_SETTINGS, format: 'wav' })
+        url = URL.createObjectURL(blob)
+        cacheRef.current[name] = url
+      }
+      if (!audioRef.current) audioRef.current = new Audio()
+      const a = audioRef.current
+      a.src = url
+      a.onended = () => setPlayingName(null)
+      await a.play()
+      setPlayingName(name)
+    } catch (e: any) {
+      toast({ kind: 'err', title: t(lang, 'preview_fail') })
+    } finally {
+      setLoadingName(null)
+    }
+  }
 
   const filtered = voices.filter(v => {
-    if (filter === 'M' && v.g !== 'M') return false
-    if (filter === 'F' && v.g !== 'F') return false
-    if (filter === 'star' && !starred.has(v.name)) return false
+    // Gender narrows only voices that declare a gender; cloned voices (no `g`)
+    // always pass so "Cloned" can combine with Male/Female (issue #4).
+    if (gender !== 'all' && v.g && v.g !== gender) return false
+    if (starOnly && !starred.has(v.name)) return false
+    if (clonedOnly && !(v.cloned || v.id)) return false
     if (q) { const s = (v.name + ' ' + (v.vi || '') + ' ' + (v.en || '')).toLowerCase(); if (!s.includes(q.toLowerCase())) return false }
     return true
   })
-  const chips = [
-    { id: 'all', label: t(lang, 'all') }, { id: 'M', label: t(lang, 'male') },
-    { id: 'F', label: t(lang, 'female') }, { id: 'star', label: t(lang, 'starred') },
+  const genderChips = [
+    { id: 'all' as const, label: t(lang, 'all') }, { id: 'M' as const, label: t(lang, 'male') }, { id: 'F' as const, label: t(lang, 'female') },
   ]
   return (
     <div className="stack" style={{ minWidth: 0 }}>
@@ -49,24 +99,33 @@ export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, o
         <div className="search">
           <Icon name="search" size={15} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder={t(lang, 'search_voice')} />
-          {q && <Icon name="x" size={14} className="faint" style={{ cursor: 'pointer' }} onClick={() => setQ('')} />}
+          {q && <span style={{ cursor: 'pointer', display: 'inline-flex' }} onClick={() => setQ('')} aria-label={t(lang, 'clear')}><Icon name="x" size={14} className="faint" /></span>}
         </div>
       </div>
       <div className="filter-chips">
-        {chips.map(c => (
-          <button key={c.id} className={'chip' + (filter === c.id ? ' on' : '')} onClick={() => setFilter(c.id)}>
-            {c.id === 'star' && <Icon name="star" size={12} fill style={{ marginRight: 4, verticalAlign: '-1px' }} />}
+        {genderChips.map(c => (
+          <button key={c.id} className={'chip' + (gender === c.id ? ' on' : '')} onClick={() => setGender(c.id)}>
             {c.label}
           </button>
         ))}
+        <button className={'chip' + (starOnly ? ' on' : '')} onClick={() => setStarOnly(s => !s)}>
+          <Icon name="star" size={12} fill style={{ marginRight: 4, verticalAlign: '-1px' }} />
+          {t(lang, 'starred')}
+        </button>
+        {mixedCloned && (
+          <button className={'chip' + (clonedOnly ? ' on' : '')} onClick={() => setClonedOnly(s => !s)}>
+            <Icon name="copy" size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} />
+            {t(lang, 'cloned')}
+          </button>
+        )}
       </div>
       {filtered.length ? (
         <div className="vlist">
           {filtered.map(v => (
-            <VoiceRow key={v.name} v={v} lang={lang}
+            <VoiceRow key={v.id || v.name} v={v} lang={lang}
               selected={selected === v.name} onSelect={() => onSelect(v.name)}
               starred={starred.has(v.name)} onStar={() => onStar(v.name)}
-              playing={playingName === v.name} onPlay={() => setPlayingName(v.name)}
+              playing={playingName === v.name} loading={loadingName === v.name} onPlay={() => preview(v.name)}
               onDelete={onDelete ? () => onDelete(v) : undefined} />
           ))}
         </div>

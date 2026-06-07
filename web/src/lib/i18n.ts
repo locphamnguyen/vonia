@@ -21,6 +21,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     backup_all: 'Sao lưu toàn bộ kho giọng…', backup_load: 'Nạp backup từ file .vcp…', backup_open: 'Mở thư mục lưu kho giọng',
     your_voices_empty: 'Clone xong, bấm Lưu để thêm giọng vào đây.',
     search_voice: 'Tìm giọng theo tên hoặc mô tả…', all: 'Tất cả', male: 'Nam', female: 'Nữ', starred: 'Đã gắn sao',
+    cloned: 'Giọng sao chép', preview_fail: 'Không tạo được giọng đọc thử',
     no_voice_found: 'Không tìm thấy giọng phù hợp.',
     voice: 'Giọng nói', preset_voice: 'Giọng có sẵn', random_voice: 'Giọng ngẫu nhiên',
     pick_from_store: 'Chọn giọng từ kho', gender: 'Giới tính', age: 'Độ tuổi', pitch: 'Cao độ', accent: 'Khẩu âm', auto: 'Auto',
@@ -50,6 +51,8 @@ export const I18N: Record<Lang, Record<string, string>> = {
     ob_skip: 'Bỏ qua', ob_next: 'Tiếp tục', ob_back: 'Quay lại', ob_done: 'Bắt đầu dùng',
     welcome: 'Chào mừng đến với Vonia', queue: 'Hàng đợi', done_status: 'Hoàn tất', failed: 'Lỗi', processing: 'Đang xử lý',
     expand: 'Mở rộng', collapse: 'Thu gọn',
+    offline_title: 'Máy chủ chưa kết nối.', offline_hint: 'Hãy khởi động OmniVoice server rồi thử lại.', coming_soon: 'Sắp có',
+    completed: 'Đã hoàn tất', queued: 'Trong hàng đợi', retry: 'Thử lại', delete: 'Xóa',
   },
   en: {
     nav_studio: 'Voice Studio', nav_webhook: 'Webhook', nav_settings: 'Settings',
@@ -70,6 +73,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     backup_all: 'Back up entire voice store…', backup_load: 'Load backup from .vcp file…', backup_open: 'Open voice store folder',
     your_voices_empty: 'After cloning, click Save to add the voice here.',
     search_voice: 'Search voices by name or description…', all: 'All', male: 'Male', female: 'Female', starred: 'Starred',
+    cloned: 'Cloned', preview_fail: 'Could not generate a voice preview',
     no_voice_found: 'No matching voices found.',
     voice: 'Voice', preset_voice: 'Preset voices', random_voice: 'Random voice',
     pick_from_store: 'Pick from store', gender: 'Gender', age: 'Age', pitch: 'Pitch', accent: 'Accent', auto: 'Auto',
@@ -99,6 +103,8 @@ export const I18N: Record<Lang, Record<string, string>> = {
     ob_skip: 'Skip', ob_next: 'Continue', ob_back: 'Back', ob_done: 'Get started',
     welcome: 'Welcome to Vonia', queue: 'Queue', done_status: 'Done', failed: 'Failed', processing: 'Processing',
     expand: 'Expand', collapse: 'Collapse',
+    offline_title: 'Backend not connected.', offline_hint: 'Start the OmniVoice server, then try again.', coming_soon: 'Coming soon',
+    completed: 'Completed', queued: 'Queued', retry: 'Retry', delete: 'Delete',
   },
 }
 

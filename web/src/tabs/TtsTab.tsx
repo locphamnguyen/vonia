@@ -7,6 +7,7 @@ import { useGenerator, fmtTime, type GenRow } from '../hooks/useGenerator'
 import { useVoices } from '../app/store'
 import { t, type Lang } from '../lib/i18n'
 import { VOICES, LANG_NAME } from '../lib/data'
+import { splitText as splitTextLines, type SplitMode } from '../lib/text'
 import * as api from '../lib/api'
 
 function randInstruct(r: any): string {
@@ -18,7 +19,7 @@ function randInstruct(r: any): string {
   return parts.join(', ')
 }
 
-function VoicePanel({ lang, mode, setMode, selVoice, onSelect, starred, onStar, random, setRandom }: any) {
+function VoicePanel({ lang, mode, setMode, selVoice, onSelect, starred, onStar, random, setRandom, voices, previewLang }: any) {
   const autoOpts = [
     { value: 'auto', label: t(lang, 'auto') }, { value: 'low', label: lang === 'en' ? 'Low' : 'Thấp' },
     { value: 'mid', label: lang === 'en' ? 'Mid' : 'Trung' }, { value: 'high', label: lang === 'en' ? 'High' : 'Cao' }]
@@ -31,9 +32,9 @@ function VoicePanel({ lang, mode, setMode, selVoice, onSelect, starred, onStar, 
       {mode === 'preset' ? (
         <div>
           <div className="row between" style={{ margin: '2px 0 4px' }}>
-            <span className="section-title">{t(lang, 'pick_from_store')} <span className="muted">({VOICES.length} {t(lang, 'samples')})</span></span>
+            <span className="section-title">{t(lang, 'pick_from_store')} <span className="muted">({voices.length} {t(lang, 'samples')})</span></span>
           </div>
-          <VoiceList voices={VOICES} lang={lang} selected={selVoice} onSelect={onSelect} starred={starred} onStar={onStar} />
+          <VoiceList voices={voices} lang={lang} selected={selVoice} onSelect={onSelect} starred={starred} onStar={onStar} mixedCloned previewLang={previewLang} />
         </div>
       ) : (
         <div className="stack gap14">
@@ -60,12 +61,7 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
   const store = useVoices()
   const toast = useToast()
 
-  const splitText = () => {
-    if (split === 'none') return [text.trim()].filter(Boolean)
-    if (split === 'newline') return text.split(/\n+/).map(x => x.trim()).filter(Boolean)
-    if (split === 'comma') return text.split(/[,，]\s*|\n+/).map(x => x.trim()).filter(Boolean)
-    return text.split(/(?<=[.!?…])\s+|\n+/).map(x => x.trim()).filter(Boolean)
-  }
+  const splitText = () => splitTextLines(text, split as SplitMode)
 
   const voiceArgs = () => {
     if (mode === 'random') return { instruct: randInstruct(random) || undefined }
@@ -113,7 +109,9 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
       done.forEach(r => dl(r.blob!, `vonia_${String(r.id).padStart(2, '0')}.wav`))
     }
     if (srt && gen.rows.length) {
-      const srtText = gen.rows.map((r, i) => `${i + 1}\n00:00:${String(i * 4).padStart(2, '0')},000 --> 00:00:${String(i * 4 + 4).padStart(2, '0')},000\n${r.text}\n`).join('\n')
+      // Use fmtTime (MM:SS with rollover) so batches >=15 lines stay valid SRT;
+      // prefix "00:" for the hours field. (Timing is a fixed 4s/line estimate.)
+      const srtText = gen.rows.map((r, i) => `${i + 1}\n00:${fmtTime(i * 4)},000 --> 00:${fmtTime(i * 4 + 4)},000\n${r.text}\n`).join('\n')
       dl(new Blob([srtText], { type: 'text/plain' }), 'vonia.srt')
     }
   }
@@ -124,7 +122,8 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
         <div className="rail">
           <LanguageField lang={lang} value={language} onChange={setLanguage} />
           <VoicePanel lang={lang} mode={mode} setMode={setMode} selVoice={selVoice} onSelect={setSelVoice}
-            starred={starred} onStar={onStar} random={random} setRandom={setRandom} />
+            starred={starred} onStar={onStar} random={random} setRandom={setRandom}
+            voices={[...VOICES, ...store.userUIVoices]} previewLang={LANG_NAME[language]} />
           <AdvancedSettings lang={lang} s={s} set={set} open={false} />
           <AudioTuning lang={lang} s={s} set={set} open={false} />
           <BatchPanel lang={lang} s={s} set={set} />

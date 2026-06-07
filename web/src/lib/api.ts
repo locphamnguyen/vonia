@@ -20,12 +20,17 @@ export interface VoiceRecord { id: string; name: string; has_ref_text: boolean; 
 export interface SttSegment { start: number | null; end: number | null; text: string }
 export interface SttResult { text: string; segments: SttSegment[] }
 
-/** Map the design's abstract sliders to OmniVoice generation params. */
+/** Map the design's abstract sliders to OmniVoice generation params.
+   Guards against stale/undefined settings (e.g. localStorage from an older
+   build missing `detail`) which would otherwise yield NaN and a 422. */
 export function mapParams(s: GenSettings) {
+  const detail = Number.isFinite(s.detail) ? s.detail : 32
+  const adherence = Number.isFinite(s.adherence) ? s.adherence : 2.0
+  const speed = Number.isFinite(s.speed) ? s.speed : 1.0
   return {
-    num_step: Math.round(16 + (Math.max(0, Math.min(100, s.detail)) / 100) * 32), // 16..48
-    guidance_scale: s.adherence,
-    speed: s.speed,
+    num_step: Math.round(16 + (Math.max(0, Math.min(100, detail)) / 100) * 32), // 16..48
+    guidance_scale: adherence,
+    speed,
     normalize: !!s.normalize,
     postprocess_output: s.proc !== 'raw',
   }
@@ -107,6 +112,7 @@ export async function tts(a: TtsArgs): Promise<Blob> {
     fd.append('num_step', String(p.num_step))
     fd.append('guidance_scale', String(p.guidance_scale))
     fd.append('speed', String(p.speed))
+    fd.append('postprocess_output', String(p.postprocess_output))
     fd.append('response_format', fmt)
     const res = await fetch(`${API_BASE}/tts/upload`, { method: 'POST', body: fd })
     if (!res.ok) await asError(res)

@@ -38,11 +38,21 @@ export function useGenerator() {
     setRows(rs => rs.map(r => r.id === id ? { ...r, state: 'processing' } : r))
     try {
       const blob = await build()
+      // If the user stopped while this was in flight, don't resurrect the row to
+      // 'done' (that made Stop look like a no-op). Drop the result, mark idle.
+      if (cancelled.current) {
+        setRows(rs => rs.map(r => r.id === id ? { ...r, state: 'idle' } : r))
+        return false
+      }
       const url = URL.createObjectURL(blob)
       urls.current.push(url)
       setRows(rs => rs.map(r => r.id === id ? { ...r, state: 'done', blob, url, error: undefined } : r))
       return true
     } catch (e: any) {
+      if (cancelled.current) {
+        setRows(rs => rs.map(r => r.id === id ? { ...r, state: 'idle' } : r))
+        return false
+      }
       setRows(rs => rs.map(r => r.id === id ? { ...r, state: 'error', error: String(e?.message || e) } : r))
       return false
     }
@@ -70,6 +80,7 @@ export function useGenerator() {
         if (myIndex >= ids.length) return
         const id = ids[myIndex]
         await runOne(id, builders.current[id])
+        if (cancelled.current) return
         done++
         setProgress(Math.round((done / total) * 100))
       }
@@ -95,6 +106,7 @@ export function useGenerator() {
   const retry = useCallback(async (id: number) => {
     const build = builders.current[id]
     if (!build) return
+    cancelled.current = false  // a prior stop() set this; retry is a fresh run
     await runOne(id, build)
   }, [runOne])
 

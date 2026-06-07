@@ -40,7 +40,9 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
     if (!file) { toast({ kind: 'err', title: lang === 'en' ? 'Choose a sample audio first' : 'Hãy chọn tệp mẫu trước' }); return }
     toast({ kind: 'info', title: lang === 'en' ? 'Transcribing sample…' : 'Đang nhận dạng mẫu…' })
     try {
-      const r = await api.stt(file, 'turbo', language)
+      // Auto-detect the sample's language (do NOT force the synthesis language —
+      // the reference audio may be spoken in a different language than the target).
+      const r = await api.stt(file, 'turbo')
       setSampleText(r.text)
       toast({ kind: 'good', title: lang === 'en' ? 'Transcript filled' : 'Đã điền văn bản mẫu' })
     } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) }

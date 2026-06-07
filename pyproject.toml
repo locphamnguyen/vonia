@@ -45,6 +45,16 @@ dependencies = [
 
 [project.optional-dependencies]
 
+serve = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",   # multipart/form-data uploads (voice library, /tts/upload)
+]
+
+vi = [
+    "vinorm",             # Vietnamese text normalization (used by the API normalize hook)
+]
+
 eval = [
     "jiwer==3.1.0",       # WER
     "s3prl",               # Speech representation (HuBERT etc.)
@@ -58,6 +68,7 @@ eval = [
 omnivoice-infer = "omnivoice.cli.infer:main"
 omnivoice-infer-batch = "omnivoice.cli.infer_batch:main"
 omnivoice-demo = "omnivoice.cli.demo:main"
+omnivoice-serve = "omnivoice.cli.serve:main"
 
 [project.urls]
 Homepage = "https://github.com/k2-fsa/OmniVoice"

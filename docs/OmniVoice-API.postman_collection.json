@@ -1,0 +1,234 @@
+{
+  "info": {
+    "name": "OmniVoice API",
+    "_postman_id": "omnivoice-api-collection-0001",
+    "description": "# OmniVoice HTTP API\n\nZero-shot multilingual TTS — **voice cloning**, **voice design**, **auto voice** — qua HTTP. Gồm REST tùy biến (`/tts`, `/v1/voices`…) và endpoint **OpenAI-compatible** (`/v1/audio/speech`).\n\n## Khởi động server\n```bash\ncd /root/0project/OmniVoice && export PATH=\"$HOME/.local/bin:$PATH\"\nuv pip install fastapi \"uvicorn[standard]\" python-multipart vinorm\nuv run omnivoice-serve --port 8002\n```\n\n## Biến collection\n- `base_url` — mặc định `http://localhost:8002`\n- `voice_id` — mặc định `nhatnam` (dùng cho các request clone)\n\n## 3 chế độ (tự suy)\n1. **Clone**: `voice_id` hoặc `ref_audio` (+`ref_text` tùy chọn)\n2. **Design**: `instruct` (vd `female, british accent`)\n3. **Auto**: không cung cấp gì\nƯu tiên: `voice_id` → `ref_audio` → `instruct` → auto.\n\n## Định dạng trả về\n`wav` (audio/wav, mặc định /tts) · `mp3` (audio/mpeg, mặc định /v1/audio/speech) · `pcm` (audio/pcm thô). Đều 24 kHz mono.\n\n## Chuẩn hóa tiếng Việt\nĐặt `normalize: true` để đọc số/%/ngày thành chữ (cần `vinorm`). Thiếu vinorm → 400.\n\n## Đồng thời\nGPU xử lý tuần tự (`--max-concurrency`, mặc định 1). Quá tải → 503.\n\n## Lỗi\n`{ \"error\": { \"message\": ..., \"type\": ... } }` — 400 invalid_request / normalizer_error · 404 voice_not_found · 409 voice_exists · 503 queue_full.\n\n> **Tip Postman**: với các request trả audio nhị phân, dùng **Send and Download** để lưu file .wav/.mp3.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8002", "type": "string" },
+    { "key": "voice_id", "value": "nhatnam", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "description": "# 🩺 System — Kiểm tra & thông tin server\n\nNhóm endpoint **chỉ đọc (GET)**, không tốn GPU, dùng để: kiểm tra server sống chưa, model nạp xong chưa, GPU còn bao nhiêu VRAM, và tra giá trị mặc định của tham số sinh.\n\n> **Khi mới khởi động server**, model mất ~1 phút để nạp (lần đầu còn tải checkpoint). Hãy **poll `GET /health`** đến khi trả 200 rồi mới gọi `/tts`.\n\n---\n\n## `GET /health`\nTrạng thái tổng quát.\n\n**200 OK**\n```json\n{\n  \"status\": \"ok\",\n  \"model\": \"k2-fsa/OmniVoice\",\n  \"device\": \"cuda\",\n  \"sampling_rate\": 24000,\n  \"queue_depth\": 0,\n  \"max_concurrency\": 1,\n  \"vram\": { \"free_mb\": 21755, \"used_mb\": 2229, \"total_mb\": 23984 }\n}\n```\n| Trường | Ý nghĩa |\n|---|---|\n| `status` | luôn `ok` khi server đã sẵn sàng |\n| `device` | `cuda` / `cuda:0` / `mps` / `xpu` / `cpu` |\n| `sampling_rate` | tần số lấy mẫu audio đầu ra (24000 Hz) |\n| `queue_depth` | số request đang chạy + đang chờ trên GPU |\n| `max_concurrency` | số request sinh song song tối đa (cấu hình `--max-concurrency`) |\n| `vram` | dung lượng VRAM (chỉ có khi chạy CUDA; `null` nếu CPU/MPS) |\n\n**Mẹo giám sát**: nếu `queue_depth` thường xuyên cao → tăng `--max-concurrency` (nếu đủ VRAM) hoặc thêm instance.\n\n---\n\n## `GET /v1/info`\nThông tin cấu hình + **giá trị mặc định** của tham số sinh (để biết bạn đang ghi đè gì).\n```json\n{\n  \"model\": \"k2-fsa/OmniVoice\",\n  \"sampling_rate\": 24000,\n  \"response_formats\": [\"wav\", \"mp3\", \"pcm\"],\n  \"normalizer\": \"omnivoice.server.norm_vi:normalize\",\n  \"defaults\": { \"num_step\": 32, \"guidance_scale\": 2.0, \"t_shift\": 0.1, \"denoise\": true, \"postprocess_output\": true }\n}\n```\n- `normalizer`: bộ chuẩn hóa text đang dùng; `null` nghĩa là server chạy với `--normalizer \"\"` (tắt) → mọi `normalize:true` sẽ lỗi 400.\n\n---\n\n## `GET /v1/models`\nDanh sách model theo **định dạng OpenAI** — để các client OpenAI dò model hợp lệ.\n```json\n{ \"object\": \"list\", \"data\": [ { \"id\": \"k2-fsa/OmniVoice\", \"object\": \"model\" } ] }\n```\n\n---\n\n### Không có endpoint nào ở đây cần body hay header đặc biệt. Chỉ cần bấm **Send**.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+            "description": "Trạng thái server, thiết bị (cuda/cpu…), sample rate, VRAM còn trống, độ sâu hàng đợi (`queue_depth`) và `max_concurrency`.\n\n**200**:\n```json\n{\"status\":\"ok\",\"model\":\"k2-fsa/OmniVoice\",\"device\":\"cuda\",\"sampling_rate\":24000,\"queue_depth\":0,\"max_concurrency\":1,\"vram\":{\"free_mb\":21755,\"used_mb\":2229,\"total_mb\":23984}}\n```"
+          }
+        },
+        {
+          "name": "Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/info", "host": ["{{base_url}}"], "path": ["v1", "info"] },
+            "description": "Model id, `sampling_rate`, danh sách `response_formats`, normalizer đang cấu hình, và **giá trị mặc định** của tham số sinh (`num_step`, `guidance_scale`, `t_shift`, `denoise`, `postprocess_output`)."
+          }
+        },
+        {
+          "name": "Models (OpenAI)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/models", "host": ["{{base_url}}"], "path": ["v1", "models"] },
+            "description": "Liệt kê model theo định dạng OpenAI: `{\"object\":\"list\",\"data\":[{\"id\":\"k2-fsa/OmniVoice\",\"object\":\"model\"}]}`. Dùng để các client OpenAI dò model."
+          }
+        }
+      ]
+    },
+    {
+      "name": "TTS (REST)",
+      "description": "# 🔊 TTS (REST) — Tổng hợp giọng nói\n\nNhóm endpoint **chính** để biến text thành audio. Đây là API tùy biến đầy đủ của OmniVoice: hỗ trợ cả 3 chế độ và **mọi** tham số sinh.\n\n> **Trả về audio nhị phân.** Trong Postman, bấm mũi tên cạnh **Send → Send and Download** để lưu file `.wav`/`.mp3`. (Thêm `?json=1` vào URL nếu muốn nhận JSON base64 thay vì file.)\n\n---\n\n## Chọn chế độ như thế nào? (tự suy từ field)\n\n| Bạn cung cấp | Chế độ | Kết quả |\n|---|---|---|\n| `voice_id` | **Clone** (library) | Clone giọng đã đăng ký — nhanh nhất (prompt đã cache) |\n| `ref_audio` (base64) hoặc `file` (upload) | **Clone** (tức thì) | Clone từ audio mẫu gửi kèm |\n| `instruct` | **Design** | Tạo giọng theo mô tả, không cần mẫu |\n| *(không gì cả)* | **Auto** | Model tự chọn giọng |\n\nƯu tiên khi có nhiều field: `voice_id` → `ref_audio` → `instruct` → auto.\n\n---\n\n## 2 endpoint trong nhóm\n\n### `POST /tts` — body JSON\nGửi `Content-Type: application/json`. Phù hợp khi clone bằng `voice_id`, `instruct`, auto, hoặc clone bằng `ref_audio` đã mã hóa base64.\n\n### `POST /tts/upload` — body multipart/form-data\nGiống `/tts` nhưng cho **upload thẳng file audio mẫu** (không cần base64). Trong Postman: ở dòng `file`, đổi cột type sang **File** rồi chọn audio; xóa các field rỗng không dùng.\n\n---\n\n## Bảng tham số đầy đủ (dùng cho cả 2 endpoint)\n\n| Trường | Kiểu | Mặc định | Mô tả |\n|---|---|---|---|\n| `text` | string | **bắt buộc** | Văn bản cần đọc. Text dài tự được chia chunk. |\n| `language` | string | null | `Vietnamese`/`vi`, `English`/`en`… Bỏ trống = tự nhận (chỉ định sẽ chính xác hơn một chút). |\n| `voice_id` | string | null | Giọng đã đăng ký (chế độ clone). |\n| `ref_audio` | string (base64) | null | Audio mẫu mã hóa base64 — **chỉ** ở `/tts`. |\n| `file` | file | null | Audio mẫu — **chỉ** ở `/tts/upload`. |\n| `ref_text` | string | null | Transcript của audio mẫu. Bỏ trống → Whisper tự transcribe. |\n| `instruct` | string | null | Thuộc tính giọng (design), vd `\"female, british accent\"`. |\n| `speed` | float | null | `>1.0` nhanh hơn, `<1.0` chậm hơn. |\n| `duration` | float | null | Cố định độ dài (giây). **Ghi đè** `speed`. |\n| `normalize` | bool | false | Chạy bộ chuẩn hóa text trước (số/%/ngày → chữ). |\n| `response_format` | string | `wav` | `wav` / `mp3` / `pcm`. |\n| `num_step` | int | 32 | Số bước diffusion. **16 = nhanh ~2×**, chất lượng vẫn tốt. |\n| `guidance_scale` | float | 2.0 | Classifier-free guidance. Cao hơn = bám prompt hơn. |\n| `t_shift` | float | 0.1 | Time-step shift (nhỏ → nhấn vùng low-SNR). |\n| `denoise` | bool | true | Thêm token `<|denoise|>`. |\n| `postprocess_output` | bool | true | Bỏ khoảng lặng, fade-in/out, pad biên. |\n| `layer_penalty_factor` | float | 5.0 | Ưu tiên unmask codebook lớp sớm. |\n| `position_temperature` | float | 5.0 | Nhiệt độ chọn vị trí. |\n| `class_temperature` | float | 0.0 | Nhiệt độ sampling (0 = greedy, ổn định nhất). |\n| `audio_chunk_duration` | float | 15.0 | Độ dài mỗi chunk (giây) khi text dài. |\n| `audio_chunk_threshold` | float | 30.0 | Vượt ngưỡng này (giây ước lượng) mới chia chunk. |\n\n> `/tts/upload` hiện nhận các gen-param phổ biến: `num_step`, `guidance_scale` (các tham số nâng cao khác hãy dùng `/tts` JSON).\n\n---\n\n## Ví dụ nhanh (curl)\n```bash\n# Clone bằng voice_id, đọc nhanh\ncurl -X POST {{base_url}}/tts -H 'Content-Type: application/json' \\\n  -d '{\"text\":\"Xin chào.\",\"voice_id\":\"nhatnam\",\"num_step\":16}' -o out.wav\n\n# Upload file mẫu, xuất mp3\ncurl -X POST {{base_url}}/tts/upload \\\n  -F text=\"Bản clone từ file.\" -F file=@ref.wav -F response_format=mp3 -o out.mp3\n```\n\n## Mẹo chất lượng\n- Audio mẫu **3–10 giây**, cùng ngôn ngữ với text đích cho phát âm chuẩn nhất.\n- Tiếng Việt có số/%/ngày → bật `normalize:true`.\n- Cần ổn định, lặp lại giống nhau → để `class_temperature:0` (mặc định).\n- Muốn nhanh → `num_step:16`. Muốn mượt hơn → giữ `32`.\n\n## Lỗi thường gặp\n| HTTP | type | Nguyên nhân |\n|---|---|---|\n| 400 | invalid_request | `text` rỗng, base64 hỏng, tham số sai kiểu |\n| 400 | normalizer_error | `normalize:true` nhưng server thiếu vinorm |\n| 404 | voice_not_found | `voice_id` chưa đăng ký |\n| 503 | queue_full | quá tải hàng đợi GPU |",
+      "item": [
+        {
+          "name": "TTS - Auto voice",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Xin chào, đây là thử nghiệm tổng hợp giọng tự động.\",\n  \"language\": \"Vietnamese\",\n  \"num_step\": 16\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "**Chế độ Auto** — không có voice_id/ref_audio/instruct, model tự chọn giọng.\n\nTrả `audio/wav` (24 kHz mono). Thêm `?json=1` để nhận `{audio_base64,...}`.\n\n### Tham số (JSON)\n| Trường | Mặc định | Mô tả |\n|---|---|---|\n| `text` | **bắt buộc** | Văn bản |\n| `language` | null | `Vietnamese`/`vi`… bỏ trống = tự nhận |\n| `speed` | null | >1 nhanh, <1 chậm |\n| `duration` | null | Cố định giây (ghi đè speed) |\n| `normalize` | false | Chuẩn hóa text trước |\n| `response_format` | wav | wav/mp3/pcm |\n| `num_step` | 32 | Bước diffusion (16 = nhanh) |\n| `guidance_scale` | 2.0 | CFG |\n| `t_shift` | 0.1 | Time-step shift |\n| `denoise` | true | Token denoise |\n| `postprocess_output` | true | Bỏ lặng/fade/pad |\n| `layer_penalty_factor` | 5.0 | |\n| `position_temperature` | 5.0 | |\n| `class_temperature` | 0.0 | 0 = greedy |\n| `audio_chunk_duration` | 15.0 | Chunk (giây) khi text dài |\n| `audio_chunk_threshold` | 30.0 | Ngưỡng chia chunk |"
+          }
+        },
+        {
+          "name": "TTS - Clone by voice_id",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bản clone qua API bằng voice_id đã đăng ký.\",\n  \"voice_id\": \"{{voice_id}}\",\n  \"language\": \"Vietnamese\",\n  \"num_step\": 16\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "**Chế độ Voice cloning** dùng giọng đã đăng ký trong Voice Library (xem folder *Voice Library* → *Register voice* trước).\n\nNhanh nhất vì prompt đã được cache (không chạy lại Whisper). `voice_id` không tồn tại → **404**."
+          }
+        },
+        {
+          "name": "TTS - Clone by ref_audio (base64)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Clone trực tiếp từ audio mẫu gửi kèm.\",\n  \"ref_audio\": \"<BASE64_AUDIO>\",\n  \"ref_text\": \"Transcript của audio mẫu (bỏ trống để Whisper tự nhận).\",\n  \"language\": \"Vietnamese\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "**Voice cloning không qua library** — gửi audio mẫu dạng **base64** trong `ref_audio`. Bỏ `ref_text` để Whisper tự transcribe.\n\n> Nếu ngại base64, dùng **TTS - Upload (multipart)** hoặc đăng ký giọng vào library."
+          }
+        },
+        {
+          "name": "TTS - Voice design (instruct)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"This is a test of voice design.\",\n  \"instruct\": \"female, young adult, high pitch, british accent\",\n  \"language\": \"English\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "**Chế độ Voice design** — mô tả giọng bằng `instruct`, không cần audio mẫu.\n\nThuộc tính: gender (male/female), age, pitch, style (whisper), English accent, Chinese dialect — phân cách bằng dấu phẩy. Voice design huấn luyện chủ yếu trên tiếng Anh/Trung."
+          }
+        },
+        {
+          "name": "TTS - Normalize (Vietnamese, mp3)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hơn 155.000 doanh nghiệp dùng Zalo, chiếm 85% năm 2024.\",\n  \"voice_id\": \"{{voice_id}}\",\n  \"normalize\": true,\n  \"response_format\": \"mp3\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Bật `normalize:true` để đọc số/%/năm thành chữ (`155.000`→\"một trăm năm mươi lăm nghìn\", `85%`→\"tám mươi lăm phần trăm\"). Cần `vinorm` cài trong môi trường server, nếu thiếu → **400 normalizer_error**.\n\nTrả `audio/mpeg` (mp3)."
+          }
+        },
+        {
+          "name": "TTS - Upload (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/tts/upload", "host": ["{{base_url}}"], "path": ["tts", "upload"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "text", "value": "Bản clone từ file upload.", "type": "text" },
+                { "key": "file", "type": "file", "src": "", "description": "Audio mẫu (.wav/.mp3) để clone. Bỏ trống nếu dùng voice_id/instruct." },
+                { "key": "language", "value": "Vietnamese", "type": "text" },
+                { "key": "ref_text", "value": "", "type": "text", "description": "Transcript mẫu (bỏ trống = Whisper tự nhận)" },
+                { "key": "voice_id", "value": "", "type": "text", "description": "Hoặc dùng giọng đã đăng ký" },
+                { "key": "instruct", "value": "", "type": "text" },
+                { "key": "speed", "value": "", "type": "text" },
+                { "key": "duration", "value": "", "type": "text" },
+                { "key": "normalize", "value": "false", "type": "text" },
+                { "key": "num_step", "value": "16", "type": "text" },
+                { "key": "guidance_scale", "value": "", "type": "text" },
+                { "key": "response_format", "value": "wav", "type": "text" }
+              ]
+            },
+            "description": "Giống `/tts` nhưng nhận **multipart/form-data** — chọn file audio mẫu trực tiếp (không cần base64). Chỉ `text` là bắt buộc; chọn `file` cho clone, hoặc dùng `voice_id`/`instruct`.\n\n**Lưu ý Postman**: ở dòng `file`, đổi cột type sang **File** rồi chọn audio; xóa các field rỗng không dùng."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Voice Library",
+      "description": "# 🎙️ Voice Library — Quản lý giọng mẫu có tên\n\nThay vì gửi audio mẫu trong **mỗi** request clone, hãy **đăng ký giọng một lần** → nhận `voice_id` → các lần sau chỉ cần truyền `voice_id`.\n\n**Lợi ích:**\n- ⚡ **Nhanh hơn nhiều**: server cache sẵn `VoiceClonePrompt` (đã encode audio + đã chạy Whisper), request clone sau bỏ qua các bước này.\n- 💾 **Bền vững**: giọng được lưu ra đĩa (`--voices-dir`, mặc định `~/.cache/omnivoice/voices`) gồm file mẫu + `index.json`, nên **sống qua restart** server (prompt được dựng lại từ file ở lần dùng đầu sau restart).\n- 🔁 **Tái sử dụng** giữa nhiều client/ứng dụng.\n\n---\n\n## Quy trình điển hình\n```\n1) POST /v1/voices        (đăng ký, chọn file audio)  ->  nhận voice_id\n2) GET  /v1/voices        (kiểm tra danh sách)\n3) POST /tts hoặc /v1/audio/speech  với voice_id      ->  audio\n4) DELETE /v1/voices/{id} (khi không cần nữa)\n```\n\n---\n\n## `POST /v1/voices` — đăng ký giọng (multipart/form-data)\n\n| Field | Kiểu | Mô tả |\n|---|---|---|\n| `name` | string (bắt buộc) | Tên giọng. `voice_id` = **slug** của tên (chữ thường, dấu cách/ký tự đặc biệt → `-`). VD `\"Nhật Nam\"` → `nhat-nam`. |\n| `file` | file (bắt buộc) | Audio mẫu, **3–10s** là tốt nhất. Trong Postman đổi type dòng này sang **File**. |\n| `ref_text` | string | Transcript của audio mẫu. **Bỏ trống** → Whisper tự transcribe (chậm hơn lần đăng ký, nhưng tiện). |\n| `overwrite` | bool | `true` để ghi đè nếu `voice_id` đã tồn tại. Mặc định `false` → trùng sẽ **409**. |\n\n**Kết quả (200)**\n```json\n{ \"id\": \"nhatnam\", \"name\": \"nhatnam\", \"has_ref_text\": false, \"created\": \"2026-06-06T14:57:47+00:00\" }\n```\n- `has_ref_text=false` nghĩa là transcript sẽ do Whisper sinh khi cần.\n- Đăng ký có chạy GPU (build prompt, có thể chạy Whisper) nên **được xếp hàng** như request sinh.\n\n---\n\n## `GET /v1/voices` — liệt kê\n```json\n{ \"voices\": [ { \"id\": \"nhatnam\", \"name\": \"nhatnam\", \"has_ref_text\": false, \"created\": \"...\" } ] }\n```\n\n## `GET /v1/voices/{id}` — chi tiết\nTrả metadata của 1 giọng. Không tồn tại → **404 voice_not_found**.\n\n## `DELETE /v1/voices/{id}` — xóa\nXóa metadata + file mẫu + cache prompt. Trả `{ \"deleted\": \"<id>\" }`. Không tồn tại → **404**.\n\n---\n\n## Lưu ý\n- **Đặt tên có dấu/khoảng trắng vẫn được**, nhưng hãy dùng `voice_id` (slug) trả về để gọi ở các request sau.\n- Muốn **cập nhật** một giọng (đổi audio mẫu): gọi lại `POST /v1/voices` cùng `name` với `overwrite=true`.\n- File mẫu nằm ở `~/.cache/omnivoice/voices/<id>/ref.<ext>`; danh mục ở `index.json` cùng thư mục.\n- Cung cấp `ref_text` chính xác sẽ cho phát âm/nhịp tốt hơn so với để Whisper tự đoán, đặc biệt với audio mẫu có nhiễu.",
+      "item": [
+        {
+          "name": "Register voice",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/voices", "host": ["{{base_url}}"], "path": ["v1", "voices"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "nhatnam", "type": "text", "description": "Tên giọng → sinh voice_id (slug)" },
+                { "key": "file", "type": "file", "src": "", "description": "Audio mẫu 3–10s (chọn File)" },
+                { "key": "ref_text", "value": "", "type": "text", "description": "Transcript mẫu (bỏ trống = Whisper tự nhận)" },
+                { "key": "overwrite", "value": "false", "type": "text", "description": "Ghi đè nếu trùng (mặc định false → 409)" }
+              ]
+            },
+            "description": "Đăng ký giọng: upload audio mẫu (`file`) + `name`. Server dựng & cache `VoiceClonePrompt` (chạy Whisper nếu không có `ref_text`) và lưu ra `--voices-dir`.\n\n**201/200**: `{\"id\":\"nhatnam\",\"name\":\"nhatnam\",\"has_ref_text\":false,\"created\":\"...\"}`\n\nTrùng tên mà không `overwrite=true` → **409 voice_exists**.\n\n**Postman**: đổi dòng `file` sang type **File** và chọn audio mẫu."
+          }
+        },
+        {
+          "name": "List voices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/voices", "host": ["{{base_url}}"], "path": ["v1", "voices"] },
+            "description": "Liệt kê tất cả giọng đã đăng ký: `{\"voices\":[{\"id\",\"name\",\"has_ref_text\",\"created\"}]}`."
+          }
+        },
+        {
+          "name": "Get voice",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/voices/{{voice_id}}", "host": ["{{base_url}}"], "path": ["v1", "voices", "{{voice_id}}"] },
+            "description": "Chi tiết một giọng theo `voice_id`. Không tồn tại → **404**."
+          }
+        },
+        {
+          "name": "Delete voice",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/v1/voices/{{voice_id}}", "host": ["{{base_url}}"], "path": ["v1", "voices", "{{voice_id}}"] },
+            "description": "Xóa giọng (metadata + file + cache). Trả `{\"deleted\":\"<id>\"}`. Không tồn tại → **404**."
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAI-compatible",
+      "description": "# 🔌 OpenAI-compatible — Dùng lại client có sẵn\n\nEndpoint `POST /v1/audio/speech` mô phỏng API **`audio.speech`** của OpenAI, để bạn trỏ thẳng SDK/công cụ OpenAI (hoặc client từng dùng với server Higgs) sang OmniVoice **mà không sửa code** — chỉ đổi `base_url`.\n\n> Trả **audio nhị phân**, mặc định `mp3`. Trong Postman dùng **Send and Download** để lưu file.\n\n---\n\n## `POST /v1/audio/speech` (JSON)\n\n| Trường | Kiểu | Mô tả |\n|---|---|---|\n| `model` | string | Chỉ để tương thích, không ảnh hưởng định tuyến (server chỉ có 1 model). |\n| `input` | string (bắt buộc) | Văn bản cần đọc (tương đương `text`). |\n| `voice` | string | **Ánh xạ thông minh** (xem dưới). |\n| `response_format` | string | `mp3` (mặc định) / `wav` / `pcm`. |\n| `speed` | float | Tốc độ đọc. |\n| `instruct` | string | *(mở rộng, không chuẩn OpenAI)* thuộc tính giọng. |\n| `language` | string | *(mở rộng)* `Vietnamese`/`English`… |\n| `normalize` | bool | *(mở rộng)* chuẩn hóa text trước. |\n\n### Ánh xạ trường `voice`\n1. Nếu `voice` **trùng một `voice_id` đã đăng ký** → **clone** giọng đó.\n2. Nếu **không trùng** và bạn chưa đặt `instruct` → coi `voice` như chuỗi `instruct` (**voice design**). VD `voice: \"female, british accent\"`.\n3. Nếu `voice` rỗng hoặc `\"auto\"` → **auto voice**.\n\n> Vì OpenAI chuẩn chỉ cho `voice` là một chuỗi tên, cách ánh xạ này giúp tận dụng cả cloning lẫn voice design qua đúng một trường.\n\n---\n\n## Dùng với OpenAI Python SDK\n```python\nfrom openai import OpenAI\nclient = OpenAI(base_url=\"{{base_url}}/v1\", api_key=\"not-needed\")  # không cần key thật\n\n# Clone theo voice_id đã đăng ký\nclient.audio.speech.create(\n    model=\"k2-fsa/OmniVoice\", voice=\"nhatnam\", input=\"Xin chào\",\n    response_format=\"mp3\",\n).stream_to_file(\"out.mp3\")\n\n# Voice design qua voice=instruct\nclient.audio.speech.create(\n    model=\"k2-fsa/OmniVoice\", voice=\"female, british accent\", input=\"Hello\",\n).stream_to_file(\"design.mp3\")\n```\n\n## Dùng với curl\n```bash\ncurl -X POST {{base_url}}/v1/audio/speech -H 'Content-Type: application/json' \\\n  -d '{\"model\":\"k2-fsa/OmniVoice\",\"input\":\"Hello world\",\"voice\":\"nhatnam\",\"response_format\":\"mp3\"}' \\\n  -o out.mp3\n```\n\n---\n\n## Khác biệt so với OpenAI chính chủ\n- **Không cần `api_key`** (mặc định không auth). SDK vẫn bắt truyền một chuỗi bất kỳ.\n- `voice` không bị giới hạn trong danh sách cố định — là `voice_id` của bạn hoặc chuỗi `instruct`.\n- Có thêm field mở rộng `instruct` / `language` / `normalize` (bỏ qua nếu client không gửi).\n- Định dạng hỗ trợ: `mp3`, `wav`, `pcm` (chưa có `opus`/`aac`/`flac`).\n\n## Lỗi\n| HTTP | type | Nguyên nhân |\n|---|---|---|\n| 400 | invalid_request | `input` rỗng / tham số sai |\n| 400 | normalizer_error | `normalize:true` nhưng thiếu vinorm |\n| 503 | queue_full | quá tải hàng đợi GPU |\n\n> Lưu ý: nếu `voice` không trùng giọng đã đăng ký, nó **không** báo 404 mà được hiểu là `instruct` (voice design) — đúng tinh thần OpenAI luôn nhận một chuỗi `voice`.",
+      "item": [
+        {
+          "name": "Speech (clone by voice)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/v1/audio/speech", "host": ["{{base_url}}"], "path": ["v1", "audio", "speech"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"k2-fsa/OmniVoice\",\n  \"input\": \"Hello from the OpenAI-compatible endpoint.\",\n  \"voice\": \"{{voice_id}}\",\n  \"response_format\": \"mp3\",\n  \"speed\": 1.0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Endpoint chuẩn OpenAI. `input`→text, `voice`→`voice_id` (nếu không tồn tại sẽ coi là `instruct`; `\"auto\"`/rỗng = auto). Mặc định trả **mp3**.\n\nField mở rộng (không chuẩn OpenAI nhưng hỗ trợ): `instruct`, `language`, `normalize`.\n\nDùng với OpenAI SDK:\n```python\nfrom openai import OpenAI\nc = OpenAI(base_url=\"{{base_url}}/v1\", api_key=\"x\")\nc.audio.speech.create(model=\"k2-fsa/OmniVoice\", voice=\"{{voice_id}}\", input=\"Hi\").stream_to_file(\"out.mp3\")\n```"
+          }
+        },
+        {
+          "name": "Speech (voice design via voice=instruct)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/v1/audio/speech", "host": ["{{base_url}}"], "path": ["v1", "audio", "speech"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"k2-fsa/OmniVoice\",\n  \"input\": \"This is a designed voice.\",\n  \"voice\": \"female, british accent\",\n  \"response_format\": \"wav\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Khi `voice` không khớp giọng đã đăng ký, server coi nó như chuỗi `instruct` (voice design). Ví dụ `voice: \"female, british accent\"`."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -208,13 +208,14 @@ class Engine:
             try:
                 with os.fdopen(fd, "wb") as f:
                     f.write(audio_bytes)
-                gen_kwargs = {}
+                # Only pass generate_kwargs when non-empty. The Whisper pipeline
+                # does `forward_params.update(generate_kwargs.pop("generate_kwargs"))`,
+                # so an explicit generate_kwargs=None crashes with
+                # "'NoneType' object is not iterable" (e.g. auto-detect language).
+                pipe_kwargs = {"return_timestamps": True, "chunk_length_s": 30}
                 if language and language not in ("auto", "", None):
-                    gen_kwargs["language"] = language
-                out = self.model._asr_pipe(
-                    tmp_path, return_timestamps=True,
-                    chunk_length_s=30, generate_kwargs=gen_kwargs or None,
-                )
+                    pipe_kwargs["generate_kwargs"] = {"language": language}
+                out = self.model._asr_pipe(tmp_path, **pipe_kwargs)
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)

@@ -73,6 +73,26 @@ class VoiceList(BaseModel):
     voices: List[VoicePublic]
 
 
+class PresetVoice(BaseModel):
+    id: str
+    name: str
+    gender: str
+    instruct: str
+    desc_vi: str
+    desc_en: str
+
+
+class SttSegment(BaseModel):
+    start: Optional[float] = None
+    end: Optional[float] = None
+    text: str
+
+
+class SttResponse(BaseModel):
+    text: str
+    segments: List[SttSegment]
+
+
 class ErrorBody(BaseModel):
     message: str
     type: str = "error"

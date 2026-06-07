@@ -1,0 +1,5 @@
+Một. Dùng NotebookLM để nuốt toàn bộ tài liệu đầu vào. Upload: PDF, link web, slide, file nghiên cứu, transcript video. Sau đó yêu cầu: Tóm tắt toàn bộ nội dung theo từng chủ đề chính. Giữ lại insight quan trọng nhất. Loại bỏ phần dư thừa. Viết lại đơn giản để tôi có thể nắm nhanh.
+
+Hai. Dùng Gemini để mở rộng góc nhìn và research. Prompt: Dựa trên nội dung này, hãy tìm thêm insight liên quan, đưa ra các góc nhìn đối lập, tìm xu hướng mới, so sánh với các phương pháp khác, và gợi ý framework phù hợp. Gemini rất mạnh ở khả năng brainstorming và research.
+
+Ba. Dùng Claude để viết báo cáo hoàn chỉnh. Câu lệnh: Dựa trên toàn bộ thông tin dưới đây, hãy viết thành báo cáo hoàn chỉnh, logic rõ ràng, chuyên nghiệp, dễ đọc, có cấu trúc tốt. Không thêm thông tin ngoài dữ liệu nguồn. Claude xử lý flow nội dung rất tốt.

@@ -6,6 +6,7 @@
 """
 import argparse
 import logging
+import os
 
 from omnivoice.server.engine import Engine
 from omnivoice.server.app import create_app
@@ -25,7 +26,16 @@ def get_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-concurrency", type=int, default=1, help="Concurrent GPU generations.")
     p.add_argument("--max-queue", type=int, default=32, help="Max requests queued before returning 503.")
     p.add_argument("--load-asr", action="store_true", help="Preload Whisper ASR at startup.")
+    p.add_argument("--web-dir", default=None,
+                   help="Directory of the built web UI to serve at '/'. "
+                        "Defaults to omnivoice/server/webdist if present.")
     return p
+
+
+def _default_web_dir():
+    import omnivoice.server as _srv
+    d = os.path.join(os.path.dirname(_srv.__file__), "webdist")
+    return d if os.path.isdir(d) else None
 
 
 def main():
@@ -55,7 +65,10 @@ def main():
         else:
             logging.info("Normalizer ready: %s", engine.normalizer.spec)
 
-    app = create_app(engine)
+    web_dir = args.web_dir or _default_web_dir()
+    if web_dir:
+        logging.info("Serving web UI from %s", web_dir)
+    app = create_app(engine, web_dir=web_dir)
     logging.info("Serving on http://%s:%d", args.host, args.port)
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

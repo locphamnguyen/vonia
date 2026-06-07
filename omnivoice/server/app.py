@@ -12,13 +12,15 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
 
 from .engine import Engine, QueueFullError
 from .normalize import NormalizerError
+from .presets import PRESETS
 from .schemas import (
-    ErrorResponse, SpeechRequest, TTSRequest, VoiceList, VoicePublic,
+    ErrorResponse, SpeechRequest, SttResponse, TTSRequest, VoiceList, VoicePublic,
 )
 from .voices import VoiceExistsError, VoiceNotFoundError
 
@@ -34,7 +36,7 @@ def _audio_response(data: bytes, content_type: str, as_json: bool, fmt: str) -> 
     return Response(content=data, media_type=content_type)
 
 
-def create_app(engine: Engine) -> FastAPI:
+def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="OmniVoice API", version="1.0",
                   description="Zero-shot multilingual TTS — voice cloning, voice design, auto voice.")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -148,6 +150,21 @@ def create_app(engine: Engine) -> FastAPI:
         engine.voices.delete(voice_id)
         return {"deleted": voice_id}
 
+    # ------------------------------------------------------------- presets/STT
+    @app.get("/v1/presets")
+    async def presets():
+        return {"presets": PRESETS}
+
+    @app.post("/v1/stt", response_model=SttResponse)
+    async def stt(
+        file: UploadFile = File(...),
+        model: str = Form("turbo"),
+        language: Optional[str] = Form(None),
+    ):
+        audio_bytes = await file.read()
+        ext = os.path.splitext(file.filename)[1] if file.filename else ".wav"
+        return await engine.transcribe(audio_bytes, model=model, language=language, ext=ext)
+
     # ----------------------------------------------------- OpenAI-compatible
     @app.post("/v1/audio/speech")
     async def speech(req: SpeechRequest):
@@ -165,5 +182,11 @@ def create_app(engine: Engine) -> FastAPI:
         )
         data, ctype = engine.encode(audio, req.response_format)
         return Response(content=data, media_type=ctype)
+
+    # ------------------------------------------------- static UI (mounted last)
+    # Mounted at "/" AFTER all API routes so explicit routes win; html=True
+    # serves index.html for "/" and unknown paths (SPA-friendly).
+    if web_dir and os.path.isdir(web_dir):
+        app.mount("/", StaticFiles(directory=web_dir, html=True), name="ui")
 
     return app

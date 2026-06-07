@@ -27,6 +27,15 @@ from .voices import VoiceLibrary, VoiceNotFoundError
 
 _DTYPES = {"float16": torch.float16, "float32": torch.float32, "bfloat16": torch.bfloat16}
 
+# STT model id (from the UI) -> Whisper HF repo
+_STT_MODELS = {
+    "tiny": "openai/whisper-tiny",
+    "base": "openai/whisper-base",
+    "small": "openai/whisper-small",
+    "large": "openai/whisper-large-v3",
+    "turbo": "openai/whisper-large-v3-turbo",
+}
+
 
 class QueueFullError(RuntimeError):
     pass
@@ -177,6 +186,43 @@ class Engine:
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
+
+        return await self._run_gpu(_job)
+
+    # --------------------------------------------------------------- STT (ASR)
+    async def transcribe(self, audio_bytes: bytes, model: str = "turbo",
+                         language: Optional[str] = None, ext: str = ".wav") -> dict:
+        """Transcribe audio to text with per-segment timestamps via Whisper."""
+        hf_name = _STT_MODELS.get(model, _STT_MODELS["turbo"])
+
+        def _job() -> dict:
+            # (Re)load the ASR model if a different one is requested.
+            if getattr(self.model, "_asr_model_name", None) != hf_name or self.model._asr_pipe is None:
+                self.model.load_asr_model(model_name=hf_name)
+                self.model._asr_model_name = hf_name
+            fd, tmp_path = tempfile.mkstemp(suffix=ext or ".wav")
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(audio_bytes)
+                gen_kwargs = {}
+                if language and language not in ("auto", "", None):
+                    gen_kwargs["language"] = language
+                out = self.model._asr_pipe(
+                    tmp_path, return_timestamps=True,
+                    chunk_length_s=30, generate_kwargs=gen_kwargs or None,
+                )
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            chunks = out.get("chunks") or []
+            segments = []
+            for c in chunks:
+                ts = c.get("timestamp") or (None, None)
+                segments.append({
+                    "start": ts[0], "end": ts[1],
+                    "text": (c.get("text") or "").strip(),
+                })
+            return {"text": (out.get("text") or "").strip(), "segments": segments}
 
         return await self._run_gpu(_job)
 

@@ -4,7 +4,7 @@ export type Lang = 'vi' | 'en'
 export const I18N: Record<Lang, Record<string, string>> = {
   vi: {
     nav_studio: 'Voice Studio', nav_webhook: 'Webhook', nav_settings: 'Cài đặt',
-    plan_studio: 'Gói Studio', plan_trial: 'Dùng thử', plan_days: 'còn 21 ngày', plan_upgrade: 'Nâng cấp',
+    plan_studio: 'Gói Studio', plan_trial: 'Dùng thử', plan_days: 'còn {n} ngày', plan_upgrade: 'Nâng cấp',
     tab_clone: 'Sao chép giọng nói', tab_tts: 'Văn bản sang giọng nói', tab_dialogue: 'Hội thoại nhiều giọng',
     tab_stt: 'Giọng nói sang văn bản', tab_env: 'Cài đặt môi trường',
     start: 'Bắt đầu tạo', stop: 'Dừng', ready: 'Sẵn sàng', generating: 'Đang tạo…', export: 'Xuất âm thanh',
@@ -57,7 +57,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
   },
   en: {
     nav_studio: 'Voice Studio', nav_webhook: 'Webhook', nav_settings: 'Settings',
-    plan_studio: 'Studio plan', plan_trial: 'Trial', plan_days: '21 days left', plan_upgrade: 'Upgrade',
+    plan_studio: 'Studio plan', plan_trial: 'Trial', plan_days: '{n} days left', plan_upgrade: 'Upgrade',
     tab_clone: 'Voice clone', tab_tts: 'Text to speech', tab_dialogue: 'Multi-voice dialogue',
     tab_stt: 'Speech to text', tab_env: 'Environment',
     start: 'Generate', stop: 'Stop', ready: 'Ready', generating: 'Generating…', export: 'Export audio',

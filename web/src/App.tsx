@@ -11,7 +11,13 @@ import { WebhookView } from './tabs/WebhookView'
 import { SettingsModal } from './components/SettingsModal'
 import { Onboarding } from './components/Onboarding'
 
+// Trial meter — single source of truth so the days label and the bar can't
+// drift apart. Placeholder values until the license API exposes real trial days.
+const TRIAL_DAYS_LEFT = 21
+const TRIAL_DAYS_TOTAL = 30
+
 function Sidebar({ lang, nav, setNav, onSettings }: any) {
+  const trialPct = Math.max(0, Math.min(100, Math.round((TRIAL_DAYS_LEFT / TRIAL_DAYS_TOTAL) * 100)))
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -35,9 +41,9 @@ function Sidebar({ lang, nav, setNav, onSettings }: any) {
           <div className="plan-top">
             <span className="plan-pill"><Icon name="bolt" size={12} />{t(lang, 'plan_studio')}</span>
             <span className="grow" />
-            <span className="plan-meta" style={{ margin: 0 }}>{t(lang, 'plan_days')}</span>
+            <span className="plan-meta" style={{ margin: 0 }}>{t(lang, 'plan_days').replace('{n}', String(TRIAL_DAYS_LEFT))}</span>
           </div>
-          <div className="plan-bar"><i style={{ width: '70%' }} /></div>
+          <div className="plan-bar"><i style={{ width: `${trialPct}%` }} /></div>
         </div>
         <button className="nav-item" onClick={onSettings}>
           <Icon name="settings" size={18} className="ico" />{t(lang, 'nav_settings')}

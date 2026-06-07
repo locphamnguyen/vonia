@@ -8,7 +8,21 @@ import { useVoices } from '../app/store'
 import { t, type Lang } from '../lib/i18n'
 import { VOICES, LANG_NAME } from '../lib/data'
 import { splitText as splitTextLines, type SplitMode } from '../lib/text'
+import { buildSrt } from '../lib/srt'
 import * as api from '../lib/api'
+
+/** Measure an audio clip's duration (seconds) from its object URL. Resolves 0
+    if metadata can't load, so SRT export never hangs on a bad clip. */
+function measureDuration(url: string): Promise<number> {
+  return new Promise(resolve => {
+    const a = new Audio()
+    a.preload = 'metadata'
+    const done = (v: number) => resolve(Number.isFinite(v) ? v : 0)
+    a.onloadedmetadata = () => done(a.duration)
+    a.onerror = () => done(0)
+    a.src = url
+  })
+}
 
 function randInstruct(r: any): string {
   const parts: string[] = []
@@ -109,10 +123,12 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
       done.forEach(r => dl(r.blob!, `vonia_${String(r.id).padStart(2, '0')}.wav`))
     }
     if (srt && gen.rows.length) {
-      // Use fmtTime (MM:SS with rollover) so batches >=15 lines stay valid SRT;
-      // prefix "00:" for the hours field. (Timing is a fixed 4s/line estimate.)
-      const srtText = gen.rows.map((r, i) => `${i + 1}\n00:${fmtTime(i * 4)},000 --> 00:${fmtTime(i * 4 + 4)},000\n${r.text}\n`).join('\n')
-      dl(new Blob([srtText], { type: 'text/plain' }), 'vonia.srt')
+      // Real timing: measure each clip's duration so cues line up with the audio
+      // (the old code used a fixed 4s/line estimate). Rows without audio get 0s.
+      const entries = await Promise.all(gen.rows.map(async r => ({
+        text: r.text, dur: r.url ? await measureDuration(r.url) : 0,
+      })))
+      dl(new Blob([buildSrt(entries)], { type: 'text/plain' }), 'vonia.srt')
     }
   }
 

@@ -90,7 +90,7 @@ export function SttTab({ lang }: { lang: Lang }) {
               renderOption={(o: any) => <span className="row gap10">{o.flag ? <span className="flag">{o.flag}</span> : <Icon name="sparkles" size={14} style={{ color: 'var(--accent)' }} />}{o.label}</span>} />
           </div>
 
-          <div className="banner info"><Icon name="info" size={16} className="bico" /><span>{lang === 'en' ? 'Larger models are more accurate but need more VRAM and time. Turbo is a great balance for most machines.' : 'Model lớn hơn cho độ chính xác cao hơn nhưng cần nhiều VRAM và thời gian hơn. Turbo cân bằng tốt cho đa số máy.'}</span></div>
+          <div className="banner info" style={{ marginTop: 'auto' }}><Icon name="info" size={16} className="bico" /><span>{lang === 'en' ? 'Larger models are more accurate but need more VRAM and time. Turbo is a great balance for most machines.' : 'Model lớn hơn cho độ chính xác cao hơn nhưng cần nhiều VRAM và thời gian hơn. Turbo cân bằng tốt cho đa số máy.'}</span></div>
         </div>
         <div className="railfoot stack gap10">
           <GenBar lang={lang} running={running} status={running ? 'run' : (rows.length ? 'done' : 'idle')} progress={progress} onStart={start} onStop={() => setRunning(false)} />

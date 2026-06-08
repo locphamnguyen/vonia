@@ -20,9 +20,9 @@ export function useSettings(initial: Settings): [Settings, (k: keyof Settings, v
 
 export function LanguageField({ lang, value, onChange }: { lang: Lang; value: string; onChange: (v: string) => void }) {
   return (
-    <div>
-      <div className="field-label"><Icon name="globe" size={14} />{t(lang, 'language')}</div>
-      <Select value={value} onChange={onChange}
+    <div className="row between gap10">
+      <div className="field-label" style={{ marginBottom: 0 }}><Icon name="globe" size={14} />{t(lang, 'language')}</div>
+      <Select value={value} onChange={onChange} width={190}
         options={LANGUAGES.map(l => ({ value: l.id, label: l.label, flag: l.flag, native: l.native }))}
         renderValue={(o: any) => <span><span className="flag" style={{ marginRight: 8 }}>{o.flag}</span>{o.label}</span>}
         renderOption={(o: any) => <span className="row gap10"><span className="flag">{o.flag}</span><span>{o.label}</span><span className="faint" style={{ fontSize: 12 }}>{o.native}</span></span>}

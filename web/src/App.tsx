@@ -143,11 +143,30 @@ function Topbar({ lang, setLang, theme, setTheme, tab, setTab }: any) {
   )
 }
 
+// Keep-alive wrapper: once a tab has been opened it stays mounted, just hidden
+// via CSS, instead of being unmounted. This preserves each tab's in-progress
+// work (entered text, generated rows, audio blobs) across tab switches — an
+// unmount would otherwise wipe the tab's local state and revoke its audio
+// object URLs (see useGenerator cleanup). `flex:1 + display:flex column` mirrors
+// `.content`'s layout so the inner `.workspace`/`.stage` (which rely on `flex:1`)
+// fill the area exactly as they did when rendered directly.
+function TabPane({ id, active, children }: { id: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <div data-tab={id} style={{ flex: 1, minHeight: 0, flexDirection: 'column', display: active ? 'flex' : 'none' }}>
+      {children}
+    </div>
+  )
+}
+
 export default function App() {
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('vonia.theme') || 'dark')
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('vonia.lang') as Lang) || 'vi')
   const [nav, setNav] = useState('studio')
   const [tab, setTab] = useState('clone')
+  // Track which studio tabs have been opened so we can keep them mounted (and
+  // their work intact) without paying the mount cost for tabs never visited.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(['clone']))
+  useEffect(() => { setVisited(v => (v.has(tab) ? v : new Set(v).add(tab))) }, [tab])
   const [showSettings, setShowSettings] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('vonia.onboarded') !== '1')
   const [starred, setStarred] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('vonia.starred') || '[]')))
@@ -181,11 +200,11 @@ export default function App() {
                 <>
                   <Topbar lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} />
                   <div className="content">
-                    {tab === 'clone' && <CloneTab {...tabProps} />}
-                    {tab === 'tts' && <TtsTab {...tabProps} />}
-                    {tab === 'dialogue' && <DialogueTab {...tabProps} />}
-                    {tab === 'stt' && <SttTab lang={lang} />}
-                    {tab === 'env' && <EnvTab lang={lang} />}
+                    {visited.has('clone') && <TabPane id="clone" active={tab === 'clone'}><CloneTab {...tabProps} /></TabPane>}
+                    {visited.has('tts') && <TabPane id="tts" active={tab === 'tts'}><TtsTab {...tabProps} /></TabPane>}
+                    {visited.has('dialogue') && <TabPane id="dialogue" active={tab === 'dialogue'}><DialogueTab {...tabProps} /></TabPane>}
+                    {visited.has('stt') && <TabPane id="stt" active={tab === 'stt'}><SttTab lang={lang} /></TabPane>}
+                    {visited.has('env') && <TabPane id="env" active={tab === 'env'}><EnvTab lang={lang} /></TabPane>}
                   </div>
                 </>
               ) : (

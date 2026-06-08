@@ -55,6 +55,12 @@ PLANS: Dict[str, dict] = {
         "currency": "VND", "days": 30,
         "desc_vi": "Gói Studio · 30 ngày", "desc_en": "Studio plan · 30 days",
     },
+    "studio_6month": {
+        "id": "studio_6month", "name": "Studio (6 tháng)", "amount": 500000,
+        "currency": "VND", "days": 180,
+        "desc_vi": "Gói Studio · 6 tháng (tiết kiệm 1 tháng)",
+        "desc_en": "Studio plan · 6 months (save 1 month)",
+    },
     "studio_yearly": {
         "id": "studio_yearly", "name": "Studio (năm)", "amount": 1000000,
         "currency": "VND", "days": 365,

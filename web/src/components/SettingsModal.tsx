@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Icon, Btn, Select, Modal, useToast } from './ui'
+import { PaymentModal } from './PaymentModal'
 import { t, type Lang } from '../lib/i18n'
 import * as api from '../lib/api'
 
@@ -12,8 +13,7 @@ function LicenseTab({ lang }: { lang: Lang }) {
   const [cfg, setCfg] = useState<api.PaymentConfig | null>(null)
   const [sub, setSub] = useState<api.Subscription | null>(null)
   const [plans, setPlans] = useState<api.Plan[]>([])
-  const [qr, setQr] = useState<api.QrInfo | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [showPay, setShowPay] = useState(false)
 
   const loadSub = () => api.getSubscription().then(setSub).catch(() => {})
   useEffect(() => {
@@ -22,45 +22,8 @@ function LicenseTab({ lang }: { lang: Lang }) {
     loadSub()
   }, [])
 
-  // While a QR is shown, poll the order until the webhook flips it to paid.
-  useEffect(() => {
-    if (!qr) return
-    let alive = true
-    let timer: any
-    const tick = async () => {
-      try {
-        const o = await api.getOrder(qr.invoice_number)
-        if (!alive) return
-        if (o.status === 'paid') {
-          toast({ kind: 'good', title: t(lang, 'payment_success') })
-          loadSub(); setQr(null); return
-        }
-      } catch { /* keep polling */ }
-      if (alive) timer = setTimeout(tick, 3000)
-    }
-    timer = setTimeout(tick, 3000)
-    return () => { alive = false; clearTimeout(timer) }
-  }, [qr])  // eslint-disable-line
-
   const studio = plans.find(p => p.id === 'studio_monthly')
   const active = !!sub?.active
-
-  const upgrade = async (planId: string) => {
-    if (!cfg?.qr_enabled) { toast({ kind: 'err', title: t(lang, 'sepay_unconfigured') }); return }
-    setBusy(true)
-    try {
-      const info = await api.createQr(planId)
-      setQr(info)
-    } catch (e: any) {
-      toast({ kind: 'err', title: t(lang, 'checkout_failed') + (e?.message ? ': ' + e.message : '') })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const copy = (text: string) => {
-    navigator.clipboard?.writeText(text).then(() => toast({ kind: 'info', title: t(lang, 'copied') })).catch(() => {})
-  }
 
   return (
     <div className="stack gap18">
@@ -88,39 +51,22 @@ function LicenseTab({ lang }: { lang: Lang }) {
         ? <div className="banner info"><Icon name="check" size={16} className="bico" /><span>{t(lang, 'plan_studio')} · {t(lang, 'sub_active')} — {t(lang, 'sub_expires')}: <strong>{fmtDate(sub!.expires_at)}</strong> ({t(lang, 'plan_days').replace('{n}', String(sub!.days_left))})</span></div>
         : <div className="banner warn"><Icon name="info" size={16} className="bico" /><span>{t(lang, 'sub_trial')}</span></div>}
 
-      {qr ? (
-        <div className="card" style={{ padding: '22px 20px', textAlign: 'center', borderColor: 'var(--accent-line)' }}>
-          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{t(lang, 'qr_scan_title')}</div>
-          <div className="hint" style={{ maxWidth: 380, margin: '0 auto 16px' }}>{t(lang, 'qr_scan_hint')}</div>
-          <img src={qr.qr_url} alt="VietQR" width={224} height={224}
-            style={{ width: 224, height: 224, borderRadius: 12, background: '#fff', padding: 8, border: '1px solid var(--border)' }} />
-          <div className="stack gap8" style={{ maxWidth: 380, margin: '16px auto 0', textAlign: 'left' }}>
-            <div className="row between"><span className="muted" style={{ fontSize: 13 }}>{t(lang, 'qr_amount')}</span><strong style={{ color: 'var(--accent)', fontSize: 16 }}>{fmtVnd(qr.amount)}</strong></div>
-            <div className="row between"><span className="muted" style={{ fontSize: 13 }}>{t(lang, 'qr_bank')}</span><strong>{qr.bank_code}{qr.bank_name ? ` · ${qr.bank_name}` : ''}</strong></div>
-            <div className="row between"><span className="muted" style={{ fontSize: 13 }}>{t(lang, 'qr_account')}</span><span className="row gap6"><strong className="mono">{qr.bank_account}</strong><span style={{ cursor: 'pointer' }} onClick={() => copy(qr.bank_account)}><Icon name="copy" size={13} className="faint" /></span></span></div>
-            <div className="row between"><span className="muted" style={{ fontSize: 13 }}>{t(lang, 'qr_content')}</span><span className="row gap6"><strong className="mono">{qr.content}</strong><span style={{ cursor: 'pointer' }} onClick={() => copy(qr.content)}><Icon name="copy" size={13} className="faint" /></span></span></div>
-          </div>
-          <div className="row gap10" style={{ justifyContent: 'center', marginTop: 18 }}>
-            <span className="status-pill"><Icon name="loader" size={14} style={{ animation: 'spin .9s linear infinite' }} />{t(lang, 'qr_waiting')}</span>
-            <Btn variant="subtle" icon="x" onClick={() => setQr(null)}>{t(lang, 'qr_cancel')}</Btn>
-          </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
+          <div className="muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>{t(lang, 'plan_trial')}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, margin: '8px 0 16px' }}>{t(lang, 'free')}</div>
+          <Btn variant={active ? 'subtle' : 'good'} block icon="check" disabled>{active ? t(lang, 'included') : t(lang, 'using_now')}</Btn>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div className="card" style={{ padding: '22px 20px', textAlign: 'center' }}>
-            <div className="muted" style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>{t(lang, 'plan_trial')}</div>
-            <div style={{ fontSize: 24, fontWeight: 800, margin: '8px 0 16px' }}>{t(lang, 'free')}</div>
-            <Btn variant={active ? 'subtle' : 'good'} block icon="check" disabled>{active ? t(lang, 'included') : t(lang, 'using_now')}</Btn>
-          </div>
-          <div className="card" style={{ padding: '22px 20px', textAlign: 'center', borderColor: 'var(--accent-line)', background: 'var(--grad-soft)' }}>
-            <div style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--accent)' }}>{t(lang, 'plan_studio')}</div>
-            <div style={{ margin: '8px 0 16px' }}><span style={{ fontSize: 24, fontWeight: 800 }}>{studio ? fmtVnd(studio.amount) : '100.000đ'}</span> <span className="muted" style={{ fontSize: 13 }}>{t(lang, 'per_days')}</span></div>
-            {active
-              ? <Btn variant="good" block icon="check" disabled>{t(lang, 'using_now')}</Btn>
-              : <Btn variant="primary" block icon="bolt" disabled={busy || !cfg?.qr_enabled} onClick={() => upgrade('studio_monthly')}>{t(lang, 'upgrade_now')}</Btn>}
-          </div>
+        <div className="card" style={{ padding: '22px 20px', textAlign: 'center', borderColor: 'var(--accent-line)', background: 'var(--grad-soft)' }}>
+          <div style={{ fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--accent)' }}>{t(lang, 'plan_studio')}</div>
+          <div style={{ margin: '8px 0 16px' }}><span style={{ fontSize: 24, fontWeight: 800 }}>{studio ? fmtVnd(studio.amount) : '100.000đ'}</span> <span className="muted" style={{ fontSize: 13 }}>{t(lang, 'per_days')}</span></div>
+          {active
+            ? <Btn variant="good" block icon="check" disabled>{t(lang, 'using_now')}</Btn>
+            : <Btn variant="primary" block icon="bolt" onClick={() => setShowPay(true)}>{t(lang, 'upgrade_now')}</Btn>}
         </div>
-      )}
+      </div>
+
+      {showPay && <PaymentModal lang={lang} onClose={() => setShowPay(false)} onPaid={loadSub} />}
 
       <div className="card" style={{ padding: '14px 16px' }}>
         <div className="hint" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

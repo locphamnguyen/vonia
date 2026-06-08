@@ -11,6 +11,19 @@ import { EnvTab } from './tabs/EnvTab'
 import { WebhookView } from './tabs/WebhookView'
 import { SettingsModal } from './components/SettingsModal'
 import { Onboarding } from './components/Onboarding'
+import { MobileApp } from './mobile/MobileApp'
+
+// Switch to the dedicated mobile layout on narrow viewports (phones).
+function useIsMobile() {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
 
 // Trial meter — single source of truth so the days label and the bar can't
 // drift apart. Placeholder values until the license API exposes real trial days.
@@ -166,12 +179,16 @@ export default function App() {
   const closeOnboarding = () => { setShowOnboarding(false); localStorage.setItem('vonia.onboarded', '1') }
 
   const tabProps = { lang, starred, onStar }
+  const isMobile = useIsMobile()
 
   return (
     <AppCtx.Provider value={{ lang, theme }}>
       <ToastProvider>
         <VoicesProvider>
           <PaymentReturn lang={lang} onPaid={refreshSub} />
+          {isMobile ? (
+            <MobileApp lang={lang} setLang={setLang} />
+          ) : (
           <div className="app">
             <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} sub={sub} />
             <div className="main">
@@ -198,6 +215,7 @@ export default function App() {
               )}
             </div>
           </div>
+          )}
           {showSettings && <SettingsModal lang={lang} setLang={setLang} onClose={() => setShowSettings(false)} />}
           {showOnboarding && <Onboarding lang={lang} onClose={closeOnboarding} />}
         </VoicesProvider>

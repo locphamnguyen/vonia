@@ -2,6 +2,7 @@
 import React, {
   createContext, useContext, useEffect, useRef, useState, useCallback,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { Lang } from '../lib/i18n'
 
 /* ---------------- Icons (Lucide path data) ---------------- */
@@ -98,22 +99,46 @@ export function Btn({ icon, children, variant, size, block, onClick, disabled, i
 /* ---------------- Select ---------------- */
 export function Select({ value, options, onChange, placeholder, renderValue, renderOption, width, disabled }: any) {
   const [open, setOpen] = useState(false)
+  // The menu is rendered in a portal (position: fixed) so it can't be clipped by
+  // an ancestor's overflow (rail/panel use overflow:hidden|auto). We measure the
+  // trigger to place it, and close on any scroll/resize to avoid drift.
+  const [rect, setRect] = useState<DOMRect | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    function onDoc(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', onDoc); return () => document.removeEventListener('mousedown', onDoc)
-  }, [])
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    function onMove() { setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    window.addEventListener('resize', onMove)
+    window.addEventListener('scroll', onMove, true)   // capture: also catch rail scroll
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('resize', onMove)
+      window.removeEventListener('scroll', onMove, true)
+    }
+  }, [open])
+  const toggle = () => {
+    if (disabled) return
+    if (!open && ref.current) setRect(ref.current.getBoundingClientRect())
+    setOpen(o => !o)
+  }
   const sel = options.find((o: any) => o.value === value)
   return (
     <div className="select" ref={ref} style={width ? { width } : undefined}>
       <button className={'select-trigger' + (open ? ' open' : '')} disabled={disabled}
         style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-        onClick={() => { if (!disabled) setOpen(o => !o) }}>
+        onClick={toggle}>
         <span className="sv">{sel ? (renderValue ? renderValue(sel) : sel.label) : <span className="faint">{placeholder}</span>}</span>
         <Icon name="chevdown" size={16} className="chev" />
       </button>
-      {open && (
-        <div className="select-menu">
+      {open && rect && createPortal(
+        <div className="select-menu" ref={menuRef}
+          style={{ position: 'fixed', top: rect.bottom + 6, left: rect.left, width: rect.width, right: 'auto' }}>
           {options.map((o: any) => (
             <div key={o.value} className={'opt' + (o.value === value ? ' sel' : '')}
               onClick={() => { onChange(o.value); setOpen(false) }}>
@@ -121,8 +146,7 @@ export function Select({ value, options, onChange, placeholder, renderValue, ren
               {o.value === value && <Icon name="check" size={15} className="check" />}
             </div>
           ))}
-        </div>
-      )}
+        </div>, document.body)}
     </div>
   )
 }

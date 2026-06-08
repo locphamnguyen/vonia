@@ -31,8 +31,8 @@ function download(row: GenRow, name: string) {
   document.body.appendChild(a); a.click(); a.remove()
 }
 
-export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fmt = 'wav' }:
-  { rows: GenRow[]; lang: Lang; cols?: 'content' | 'time' | 'dialogue'; onRetry?: (id: number) => void; onPlay?: (row: GenRow) => void; fmt?: string }) {
+export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fmt = 'wav', showNum = true }:
+  { rows: GenRow[]; lang: Lang; cols?: 'content' | 'time' | 'dialogue'; onRetry?: (id: number) => void; onPlay?: (row: GenRow) => void; fmt?: string; showNum?: boolean }) {
   // Selecting a row loads its audio into the bottom player (if it's ready) so
   // the user can just hit play there — and highlights the row (# + content).
   const [selId, setSelId] = useState<number | null>(null)
@@ -41,7 +41,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
     <table className="rtable">
       <thead>
         <tr>
-          <th className="num">#</th>
+          {showNum && <th className="num">#</th>}
           {(cols === 'dialogue' || cols === 'time') && <th style={{ width: 96 }}>{t(lang, 'col_time')}</th>}
           {cols === 'dialogue' && <th style={{ width: 130 }}>{t(lang, 'col_char')}</th>}
           <th>{t(lang, 'col_content')}</th>
@@ -52,7 +52,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
       <tbody>
         {rows.map(r => (
           <tr key={r.id} className={selId === r.id ? 'sel' : ''} onClick={() => select(r)}>
-            <td className="num">{String(r.id).padStart(2, '0')}</td>
+            {showNum && <td className="num">{String(r.id).padStart(2, '0')}</td>}
             {(cols === 'dialogue' || cols === 'time') && <td className="tcode">{r.time || '00:00'}</td>}
             {cols === 'dialogue' && <td>
               <span className="row gap6">

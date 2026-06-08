@@ -169,22 +169,16 @@ export function CloneTab({ lang, starred, onStar }: { lang: Lang; starred: Set<s
 
         <div className="results-wrap" style={{ flex: 'none' }}>
           {gen.hasResults ? (
-            <div className="results-scroll"><ResultsTable rows={gen.rows} lang={lang} onRetry={gen.retry} onPlay={(r: GenRow) => setPlaySrc(r.url || null)} /></div>
+            <div className="results-scroll"><ResultsTable rows={gen.rows} lang={lang} showNum={false} onRetry={gen.retry} onPlay={(r: GenRow) => setPlaySrc(r.url || null)} /></div>
           ) : (
             <>
               <table className="rtable"><thead><tr>
-                <th className="num">#</th><th>{t(lang, 'col_content')}</th>
-                <th style={{ width: 150 }}>{t(lang, 'col_status')}</th><th style={{ width: 120 }}>{t(lang, 'col_action')}</th>
+                <th>{t(lang, 'col_content')}</th>
+                <th style={{ width: 150 }}>{t(lang, 'col_status')}</th><th style={{ width: 158 }}>{t(lang, 'col_action')}</th>
               </tr></thead></table>
-              <div className="empty" style={{ minHeight: 180 }}>
-                <div className="em-art"><Icon name="audio" size={34} /></div>
+              <div className="empty" style={{ minHeight: 96, padding: '22px 24px', gap: 6 }}>
                 <div className="em-title">{t(lang, 'no_audio')}</div>
                 <div className="em-sub">{t(lang, 'clone_empty_sub')}</div>
-                <div className="em-steps">
-                  <span className="em-step"><span className="n">1</span>{t(lang, 'sample_audio').split('(')[0]}</span>
-                  <span className="em-step"><span className="n">2</span>{t(lang, 'sample_text')}</span>
-                  <span className="em-step"><span className="n">3</span>{t(lang, 'start')}</span>
-                </div>
               </div>
             </>
           )}

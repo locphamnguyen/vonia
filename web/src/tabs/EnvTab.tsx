@@ -3,6 +3,11 @@ import { Icon, Btn, Select } from '../components/ui'
 import { t, type Lang } from '../lib/i18n'
 import * as api from '../lib/api'
 
+// Brand the model name for display only — the backend keeps its real model_id
+// (used to load weights / OpenAI-compat APIs); we just relabel it in the UI.
+const brandModel = (m?: string | null) =>
+  (m && m.trim() ? m : 'Vonia').replace(/(?:[\w./-]*\/)?omnivoice/gi, 'Vonia')
+
 function SectionCard({ title, icon, children }: any) {
   return (
     <div className="card" style={{ padding: '18px 20px' }}>
@@ -40,7 +45,7 @@ export function EnvTab({ lang }: { lang: Lang }) {
                 <span className="d" />{ready ? t(lang, 'on_device') : t(lang, 'not_on_device')}
               </span>
             </div>
-            <div className="hint mono">{t(lang, 'model_label')}: {info?.model || health?.model || 'k2-fsa/OmniVoice'} · {info?.sampling_rate || 24000} Hz</div>
+            <div className="hint mono">{t(lang, 'model_label')}: {brandModel(info?.model || health?.model)} · {info?.sampling_rate || 24000} Hz</div>
           </div>
           <div className="row gap10">
             <Btn variant="ghost" icon="refresh" onClick={() => { api.health().then(setHealth).catch(() => {}); api.info().then(setInfo).catch(() => {}) }}>{t(lang, 'refresh')}</Btn>

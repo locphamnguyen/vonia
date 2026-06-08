@@ -51,7 +51,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     ob_skip: 'Bỏ qua', ob_next: 'Tiếp tục', ob_back: 'Quay lại', ob_done: 'Bắt đầu dùng',
     welcome: 'Chào mừng đến với Vonia', queue: 'Hàng đợi', done_status: 'Hoàn tất', failed: 'Lỗi', processing: 'Đang xử lý',
     expand: 'Mở rộng', collapse: 'Thu gọn',
-    offline_title: 'Máy chủ chưa kết nối.', offline_hint: 'Hãy khởi động OmniVoice server rồi thử lại.', coming_soon: 'Sắp có',
+    offline_title: 'Máy chủ chưa kết nối.', offline_hint: 'Hãy khởi động Vonia server rồi thử lại.', coming_soon: 'Sắp có',
     completed: 'Đã hoàn tất', queued: 'Trong hàng đợi', retry: 'Thử lại', delete: 'Xóa',
     step_text: 'Nhập văn bản', step_voice: 'Chọn giọng', step_file: 'Chọn tệp', step_model: 'Chọn model', step_paste: 'Dán kịch bản',
     // --- extracted inline strings (i18n cleanup) ---
@@ -201,7 +201,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     ob_skip: 'Skip', ob_next: 'Continue', ob_back: 'Back', ob_done: 'Get started',
     welcome: 'Welcome to Vonia', queue: 'Queue', done_status: 'Done', failed: 'Failed', processing: 'Processing',
     expand: 'Expand', collapse: 'Collapse',
-    offline_title: 'Backend not connected.', offline_hint: 'Start the OmniVoice server, then try again.', coming_soon: 'Coming soon',
+    offline_title: 'Backend not connected.', offline_hint: 'Start the Vonia server, then try again.', coming_soon: 'Coming soon',
     completed: 'Completed', queued: 'Queued', retry: 'Retry', delete: 'Delete',
     step_text: 'Enter text', step_voice: 'Choose voice', step_file: 'Choose file', step_model: 'Choose model', step_paste: 'Paste script',
     // --- extracted inline strings (i18n cleanup) ---

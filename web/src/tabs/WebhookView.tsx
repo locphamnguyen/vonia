@@ -58,7 +58,7 @@ curl -X POST ${base}/tts \\
 # ${t(lang, 'wh_openai_compat')} -> out.mp3
 curl -X POST ${base}/v1/audio/speech \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"k2-fsa/OmniVoice","input":"Hello","voice":"<id>","response_format":"mp3"}' -o out.mp3`
+  -d '{"model":"Vonia","input":"Hello","voice":"<id>","response_format":"mp3"}' -o out.mp3`
 
   return (
     <div className="stage" style={{ maxWidth: 1180, margin: '0 auto', width: '100%' }}>

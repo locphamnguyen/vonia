@@ -6,6 +6,8 @@ OpenAI-compatible /v1/audio/speech endpoint. Build with ``create_app(engine)``.
 from __future__ import annotations
 
 import base64
+import json
+import logging
 import os
 from typing import Optional
 
@@ -17,13 +19,19 @@ from fastapi.staticfiles import StaticFiles
 from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
 
 from .auth import COOKIE, PUBLIC_PATHS, Auth
+from .billing import BillingStore, OrderRecord, new_invoice_number, new_payment_code
 from .engine import Engine, QueueFullError
 from .normalize import NormalizerError
 from .presets import PRESETS
 from .schemas import (
-    ErrorResponse, SpeechRequest, SttResponse, TTSRequest, VoiceList, VoicePublic,
+    CheckoutRequest, CheckoutResponse, ErrorResponse, QrRequest, QrResponse,
+    SpeechRequest, SttResponse, TTSRequest, VoiceList, VoicePublic,
 )
+from .sepay import PLANS, bank_config_from_env, client_from_env
 from .voices import VoiceExistsError, VoiceNotFoundError
+
+
+log = logging.getLogger(__name__)
 
 
 def _err(status: int, message: str, type_: str = "error") -> JSONResponse:
@@ -93,6 +101,29 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
 
     # ----------------------------------------------------------------- auth
     auth = Auth()
+
+    # --------------------------------------------------------------- billing
+    # SePay payment gateway + on-disk order/subscription store. The app has one
+    # shared login today, so every authed request maps to a single customer id
+    # (the login email, or "default" when auth is disabled in local dev). When a
+    # real multi-user account system lands, _customer_id() becomes per-user.
+    billing = BillingStore(os.environ.get("VONIA_BILLING_DIR", "~/.cache/omnivoice/billing"))
+    sepay = client_from_env()
+    bank = bank_config_from_env()  # VietQR / webhook (in-app QR flow)
+    if sepay.configured:
+        log.info("SePay payment gateway enabled (env=%s, merchant=%s).",
+                 sepay.env, sepay.merchant_id)
+    else:
+        log.warning("SePay gateway NOT configured (merchant_id/secret_key).")
+    if bank.configured:
+        log.info("SePay VietQR/webhook enabled (bank=%s, acc=%s, auth=%s).",
+                 bank.bank_code, bank.bank_account,
+                 "apikey" if bank.webhook_api_key else "hmac" if bank.webhook_secret else "none")
+    else:
+        log.warning("SePay VietQR NOT configured (set SEPAY_BANK_ACCOUNT/SEPAY_BANK_CODE).")
+
+    def _customer_id(request: Request) -> str:
+        return auth.user or "default"
 
     def _wants_html(request: Request) -> bool:
         return "text/html" in request.headers.get("accept", "")
@@ -274,6 +305,177 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         )
         data, ctype = engine.encode(audio, req.response_format)
         return Response(content=data, media_type=ctype)
+
+    # --------------------------------------------------------------- payments
+    @app.get("/payment/config")
+    async def payment_config():
+        """What billing methods are usable, for the UI. ``method`` is the
+        preferred flow: 'qr' (in-app VietQR) when a bank is configured, else
+        'gateway' (hosted redirect)."""
+        return {
+            "configured": bank.configured or sepay.configured,
+            "method": "qr" if bank.configured else ("gateway" if sepay.configured else None),
+            "qr_enabled": bank.configured,
+            "gateway_enabled": sepay.configured,
+            "env": sepay.env, "public_url": sepay.public_url, "currency": "VND",
+        }
+
+    @app.get("/payment/plans")
+    async def payment_plans():
+        return {"plans": list(PLANS.values())}
+
+    @app.get("/payment/subscription")
+    async def payment_subscription(request: Request):
+        return billing.get_subscription(_customer_id(request))
+
+    @app.post("/payment/checkout", response_model=CheckoutResponse)
+    async def payment_checkout(req: CheckoutRequest, request: Request):
+        if not sepay.configured:
+            return _err(503, "Payment gateway is not configured.", "sepay_unconfigured")
+        plan = PLANS.get(req.plan_id)
+        if not plan:
+            return _err(400, f"Unknown plan: {req.plan_id}", "unknown_plan")
+        customer = _customer_id(request)
+        invoice = new_invoice_number(plan["id"])
+        billing.create_order(OrderRecord(
+            invoice_number=invoice, plan_id=plan["id"], amount=plan["amount"],
+            currency=plan["currency"], payment_method=req.payment_method,
+            customer_id=customer, description=plan.get("desc_vi"),
+        ))
+        fields = sepay.build_checkout_fields(
+            invoice_number=invoice, amount=plan["amount"], currency=plan["currency"],
+            payment_method=req.payment_method, order_description=plan.get("desc_vi"),
+            customer_id=customer,
+            custom_data=json.dumps({"plan_id": plan["id"], "customer_id": customer}),
+        )
+        return {"checkout_url": sepay.checkout_url, "fields": fields, "invoice_number": invoice}
+
+    @app.get("/payment/order/{invoice_number}")
+    async def payment_order(invoice_number: str, request: Request):
+        rec = billing.get_order(invoice_number)
+        if rec is None:
+            return _err(404, f"Order not found: {invoice_number}", "order_not_found")
+        # Best-effort reconciliation for *gateway* orders: if the IPN hasn't
+        # flipped this order yet, ask SePay directly. Bank/VietQR orders are
+        # confirmed by the webhook instead, so they just poll our store.
+        if rec.status == "pending" and rec.provider == "gateway" and sepay.configured:
+            data = sepay.query_order(invoice_number)
+            status = (data or {}).get("order_status") if isinstance(data, dict) else None
+            if status in ("CAPTURED", "COMPLETED", "PAID"):
+                rec = billing.mark_paid(invoice_number, PLANS.get(rec.plan_id, {}).get("days", 0),
+                                        sepay_order_id=(data or {}).get("id")) or rec
+        return rec.public()
+
+    @app.post("/payment/ipn")
+    async def payment_ipn(request: Request):
+        """SePay Instant Payment Notification (public; verified by X-Secret-Key).
+        Must return HTTP 200 to acknowledge receipt."""
+        if not sepay.verify_ipn(request.headers.get("x-secret-key")):
+            log.warning("SePay IPN rejected: bad/missing X-Secret-Key.")
+            return _err(401, "Invalid secret key.", "invalid_secret")
+        try:
+            data = await request.json()
+        except Exception:  # noqa: BLE001
+            return _err(400, "Invalid JSON body.", "invalid_body")
+
+        ntype = data.get("notification_type")
+        order = data.get("order") or {}
+        txn = data.get("transaction") or {}
+        invoice = order.get("order_invoice_number")
+        log.info("SePay IPN: type=%s invoice=%s status=%s", ntype, invoice, order.get("order_status"))
+
+        if ntype == "ORDER_PAID" and invoice:
+            rec = billing.get_order(invoice)
+            if rec is None:
+                log.warning("SePay IPN ORDER_PAID for unknown invoice %s", invoice)
+                return {"success": True}  # ack so SePay stops retrying
+            # Anti-tamper: confirm the paid amount matches what we created.
+            try:
+                paid = int(float(order.get("order_amount") or 0))
+            except (TypeError, ValueError):
+                paid = 0
+            if paid and paid < rec.amount:
+                log.warning("SePay IPN amount mismatch for %s: paid=%s expected=%s",
+                            invoice, paid, rec.amount)
+                return {"success": True}
+            days = PLANS.get(rec.plan_id, {}).get("days", 0)
+            billing.mark_paid(invoice, days, sepay_order_id=order.get("id"),
+                              sepay_transaction_id=txn.get("id"))
+        elif ntype == "TRANSACTION_VOID" and invoice:
+            billing.set_status(invoice, "cancelled")
+
+        return {"success": True}
+
+    # ---------------------------------------------- VietQR / bank-transfer flow
+    @app.post("/payment/qr", response_model=QrResponse)
+    async def payment_qr(req: QrRequest, request: Request):
+        """Create a pending order and return the in-app VietQR + bank details.
+        The frontend renders the QR and polls /payment/order/{code} until the
+        webhook flips it to paid."""
+        if not bank.configured:
+            return _err(503, "VietQR is not configured.", "qr_unconfigured")
+        plan = PLANS.get(req.plan_id)
+        if not plan:
+            return _err(400, f"Unknown plan: {req.plan_id}", "unknown_plan")
+        customer = _customer_id(request)
+        # Unique payment code (retry on the rare collision).
+        for _ in range(5):
+            code = new_payment_code(bank.code_prefix)
+            if billing.get_order(code) is None:
+                break
+        billing.create_order(OrderRecord(
+            invoice_number=code, plan_id=plan["id"], amount=plan["amount"],
+            currency=plan["currency"], payment_method="BANK_TRANSFER",
+            customer_id=customer, provider="bank", description=plan.get("desc_vi"),
+        ))
+        qr_url = bank.vietqr_url(plan["amount"], des=code)
+        return {
+            "invoice_number": code, "amount": plan["amount"], "currency": plan["currency"],
+            "qr_url": qr_url, "bank_account": bank.bank_account, "bank_code": bank.bank_code,
+            "bank_name": bank.bank_name, "content": code, "plan_id": plan["id"],
+        }
+
+    @app.post("/payment/webhook")
+    async def payment_webhook(request: Request):
+        """SePay bank-transaction webhook (public; verified by API Key or HMAC).
+        Matches the transfer's payment `code` to a pending order, confirms the
+        amount, then marks paid + extends the subscription. Returns 200 to ack."""
+        raw = await request.body()
+        if not bank.verify_webhook(
+            authorization=request.headers.get("authorization"),
+            signature=request.headers.get("x-sepay-signature"),
+            timestamp=request.headers.get("x-sepay-timestamp"),
+            raw_body=raw,
+        ):
+            log.warning("SePay webhook rejected: failed auth.")
+            return _err(401, "Unauthorized.", "unauthorized")
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return _err(400, "Invalid JSON body.", "invalid_body")
+
+        code = (data.get("code") or "").strip()
+        transfer_type = data.get("transferType")
+        try:
+            amount_in = int(float(data.get("transferAmount") or 0))
+        except (TypeError, ValueError):
+            amount_in = 0
+        tx_id = str(data.get("id") or "")
+        log.info("SePay webhook: id=%s type=%s code=%s amount=%s",
+                 tx_id, transfer_type, code, amount_in)
+
+        if transfer_type == "in" and code:
+            rec = billing.get_order(code)
+            if rec is None:
+                log.info("SePay webhook: no order for code %s (ignored).", code)
+                return {"success": True}  # ack; not ours
+            if amount_in < rec.amount:
+                log.warning("SePay webhook underpaid for %s: got=%s need=%s",
+                            code, amount_in, rec.amount)
+                return {"success": True}
+            days = PLANS.get(rec.plan_id, {}).get("days", 0)
+            billing.mark_paid(code, days, sepay_transaction_id=tx_id)
+        return {"success": True}
 
     # ------------------------------------------------- static UI (mounted last)
     # Mounted at "/" AFTER all API routes so explicit routes win; html=True

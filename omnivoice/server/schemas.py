@@ -93,6 +93,36 @@ class SttResponse(BaseModel):
     segments: List[SttSegment]
 
 
+class CheckoutRequest(BaseModel):
+    """Body for POST /payment/checkout."""
+    plan_id: str = Field(..., description="Plan key from /payment/plans, e.g. 'studio_monthly'.")
+    payment_method: str = Field("BANK_TRANSFER",
+                                description="CARD | BANK_TRANSFER | NAPAS_BANK_TRANSFER.")
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str
+    fields: dict
+    invoice_number: str
+
+
+class QrRequest(BaseModel):
+    """Body for POST /payment/qr."""
+    plan_id: str = Field(..., description="Plan key from /payment/plans.")
+
+
+class QrResponse(BaseModel):
+    invoice_number: str           # the payment code (also the order key)
+    amount: int
+    currency: str
+    qr_url: str                   # qr.sepay.vn image URL to render in-app
+    bank_account: str
+    bank_code: str
+    bank_name: str
+    content: str                  # transfer content (the payment code)
+    plan_id: str
+
+
 class ErrorBody(BaseModel):
     message: str
     type: str = "error"

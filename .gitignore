@@ -35,3 +35,4 @@ examples/exp*
 # web (Vite) build tooling — keep omnivoice/server/webdist (served by FastAPI)
 web/node_modules/
 web/dist/
+.gstack/

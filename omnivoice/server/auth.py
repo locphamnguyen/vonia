@@ -15,8 +15,10 @@ import os
 import secrets
 
 COOKIE = "vonia_session"
-# Paths reachable without a session (the login flow itself).
-PUBLIC_PATHS = {"/login", "/logout"}
+# Paths reachable without a session: the login flow, and the SePay IPN callback
+# (a server-to-server webhook authenticated by its own X-Secret-Key header, not
+# by our session cookie — see sepay.SePayClient.verify_ipn).
+PUBLIC_PATHS = {"/login", "/logout", "/payment/ipn", "/payment/webhook"}
 
 
 class Auth:

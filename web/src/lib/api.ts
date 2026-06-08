@@ -133,6 +133,87 @@ export async function tts(a: TtsArgs): Promise<Blob> {
   return res.blob()
 }
 
+// ----------------------------------------------------------------- payments
+export interface PaymentConfig {
+  configured: boolean; method: 'qr' | 'gateway' | null
+  qr_enabled: boolean; gateway_enabled: boolean
+  env: string; public_url: string; currency: string
+}
+export interface QrInfo {
+  invoice_number: string; amount: number; currency: string; qr_url: string
+  bank_account: string; bank_code: string; bank_name: string; content: string; plan_id: string
+}
+export interface Plan { id: string; name: string; amount: number; currency: string; days: number; desc_vi: string; desc_en: string }
+export interface Subscription {
+  plan_id: string | null; status: string; expires_at: string | null
+  updated_at: string; active: boolean; days_left: number
+}
+export interface Order {
+  invoice_number: string; plan_id: string; amount: number; currency: string
+  payment_method: string; customer_id: string; status: string; created: string
+  paid_at: string | null; sepay_order_id: string | null
+  sepay_transaction_id: string | null; description: string | null
+}
+export interface CheckoutResponse { checkout_url: string; fields: Record<string, string>; invoice_number: string }
+
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  const res = await fetch(`${API_BASE}/payment/config`)
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function getPlans(): Promise<Plan[]> {
+  const res = await fetch(`${API_BASE}/payment/plans`)
+  if (!res.ok) await asError(res)
+  return (await res.json()).plans
+}
+
+export async function getSubscription(): Promise<Subscription> {
+  const res = await fetch(`${API_BASE}/payment/subscription`)
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function getOrder(invoiceNumber: string): Promise<Order> {
+  const res = await fetch(`${API_BASE}/payment/order/${encodeURIComponent(invoiceNumber)}`)
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function createCheckout(planId: string, paymentMethod: string): Promise<CheckoutResponse> {
+  const res = await fetch(`${API_BASE}/payment/checkout`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan_id: planId, payment_method: paymentMethod }),
+  })
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function createQr(planId: string): Promise<QrInfo> {
+  const res = await fetch(`${API_BASE}/payment/qr`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan_id: planId }),
+  })
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+/** Build a hidden form from the signed SePay fields and POST it as a top-level
+   navigation, sending the browser to SePay's hosted payment page. */
+export function redirectToCheckout(co: CheckoutResponse): void {
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = co.checkout_url
+  form.style.display = 'none'
+  for (const [k, v] of Object.entries(co.fields)) {
+    const input = document.createElement('input')
+    input.type = 'hidden'; input.name = k; input.value = v
+    form.appendChild(input)
+  }
+  document.body.appendChild(form)
+  form.submit()
+}
+
 export async function stt(file: File, model: string, language?: string): Promise<SttResult> {
   const fd = new FormData()
   fd.append('file', file)

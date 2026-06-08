@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { AppCtx, ToastProvider, Icon } from './components/ui'
+import { AppCtx, ToastProvider, Icon, useToast } from './components/ui'
 import { t, type Lang } from './lib/i18n'
 import { VoicesProvider, useVoices } from './app/store'
+import * as api from './lib/api'
 import { CloneTab } from './tabs/CloneTab'
 import { TtsTab } from './tabs/TtsTab'
 import { DialogueTab } from './tabs/DialogueTab'
@@ -16,8 +17,12 @@ import { Onboarding } from './components/Onboarding'
 const TRIAL_DAYS_LEFT = 21
 const TRIAL_DAYS_TOTAL = 30
 
-function Sidebar({ lang, nav, setNav, onSettings }: any) {
-  const trialPct = Math.max(0, Math.min(100, Math.round((TRIAL_DAYS_LEFT / TRIAL_DAYS_TOTAL) * 100)))
+function Sidebar({ lang, nav, setNav, onSettings, sub }: any) {
+  const active = !!sub?.active
+  const daysLeft = active ? sub.days_left : TRIAL_DAYS_LEFT
+  const pct = active
+    ? Math.max(0, Math.min(100, Math.round((daysLeft / 30) * 100)))
+    : Math.max(0, Math.min(100, Math.round((TRIAL_DAYS_LEFT / TRIAL_DAYS_TOTAL) * 100)))
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -37,13 +42,13 @@ function Sidebar({ lang, nav, setNav, onSettings }: any) {
       </button>
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
-        <div className="plan-card">
+        <div className="plan-card" onClick={onSettings} style={{ cursor: 'pointer' }} title={t(lang, 'nav_settings')}>
           <div className="plan-top">
-            <span className="plan-pill"><Icon name="bolt" size={12} />{t(lang, 'plan_studio')}</span>
+            <span className="plan-pill"><Icon name="bolt" size={12} />{active ? t(lang, 'plan_studio') : t(lang, 'plan_trial')}</span>
             <span className="grow" />
-            <span className="plan-meta" style={{ margin: 0 }}>{t(lang, 'plan_days').replace('{n}', String(TRIAL_DAYS_LEFT))}</span>
+            <span className="plan-meta" style={{ margin: 0 }}>{t(lang, 'plan_days').replace('{n}', String(daysLeft))}</span>
           </div>
-          <div className="plan-bar"><i style={{ width: `${trialPct}%` }} /></div>
+          <div className="plan-bar"><i style={{ width: `${pct}%` }} /></div>
         </div>
         <button className="nav-item" onClick={onSettings}>
           <Icon name="settings" size={18} className="ico" />{t(lang, 'nav_settings')}
@@ -56,6 +61,41 @@ function Sidebar({ lang, nav, setNav, onSettings }: any) {
       </div>
     </aside>
   )
+}
+
+// Handles the redirect back from SePay (success_url/error_url/cancel_url carry
+// ?payment=<status>&inv=<invoice>). Lives inside ToastProvider so it can toast.
+// On success it polls our backend order status (flipped to "paid" by the IPN, or
+// reconciled via SePay's order API) before confirming, then refreshes the plan.
+function PaymentReturn({ lang, onPaid }: { lang: Lang; onPaid: () => void }) {
+  const toast = useToast()
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const status = url.searchParams.get('payment')
+    if (!status) return
+    const inv = url.searchParams.get('inv')
+    url.searchParams.delete('payment'); url.searchParams.delete('inv')
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash)
+
+    if (status === 'cancel') { toast({ kind: 'info', title: t(lang, 'payment_cancelled') }); return }
+    if (status === 'error') { toast({ kind: 'err', title: t(lang, 'payment_error') }); return }
+    if (status !== 'success') return
+
+    toast({ kind: 'info', title: t(lang, 'checking_payment') })
+    let tries = 0
+    const poll = async () => {
+      tries++
+      try {
+        const o = inv ? await api.getOrder(inv) : null
+        if (o && o.status === 'paid') { toast({ kind: 'good', title: t(lang, 'payment_success') }); onPaid(); return }
+        if (o && (o.status === 'cancelled' || o.status === 'error')) { toast({ kind: 'err', title: t(lang, 'payment_error') }); return }
+      } catch { /* keep polling */ }
+      if (tries < 10) setTimeout(poll, 2000)
+      else { toast({ kind: 'info', title: t(lang, 'payment_pending') }); onPaid() }
+    }
+    poll()
+  }, [])  // run once on mount
+  return null
 }
 
 function ConnectionBanner({ lang }: { lang: Lang }) {
@@ -114,6 +154,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('vonia.onboarded') !== '1')
   const [starred, setStarred] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('vonia.starred') || '[]')))
+  const [sub, setSub] = useState<api.Subscription | null>(null)
+  const refreshSub = useCallback(() => { api.getSubscription().then(setSub).catch(() => {}) }, [])
+  useEffect(() => { refreshSub() }, [refreshSub])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('vonia.theme', theme) }, [theme])
   useEffect(() => { document.documentElement.lang = lang; localStorage.setItem('vonia.lang', lang) }, [lang])
@@ -128,8 +171,9 @@ export default function App() {
     <AppCtx.Provider value={{ lang, theme }}>
       <ToastProvider>
         <VoicesProvider>
+          <PaymentReturn lang={lang} onPaid={refreshSub} />
           <div className="app">
-            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} />
+            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} sub={sub} />
             <div className="main">
               <ConnectionBanner lang={lang} />
               {nav === 'studio' ? (

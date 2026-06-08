@@ -106,20 +106,30 @@ export function EnvTab({ lang }: { lang: Lang }) {
           <Select width={220} value={idle} onChange={changeIdle} disabled={savingIdle || (vramCfg ? !vramCfg.supported : false)} options={[
             { value: '5', label: t(lang, 'min5') }, { value: '10', label: t(lang, 'min10') }, { value: '15', label: t(lang, 'min15') }, { value: 'never', label: t(lang, 'never') }]} />
         </div>
-        <div className="hint" style={{ marginTop: 12 }}>
-          {vramCfg && !vramCfg.supported ? (
-            <span><Icon name="info" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{t(lang, 'vram_cpu_note')}</span>
-          ) : vramCfg?.offloaded ? (
-            <span className="status-pill idle"><span className="d" />{t(lang, 'vram_released')}</span>
-          ) : (
-            <span className="status-pill done"><span className="d" />{t(lang, 'vram_resident')}</span>
-          )}
-          {vramCfg && vramCfg.supported && (
-            <span className="muted" style={{ marginLeft: 10, fontSize: 12.5 }}>
-              {vramCfg.idle_minutes === 0 ? t(lang, 'vram_off_hint') : t(lang, 'vram_on_hint').replace('{n}', String(vramCfg.idle_minutes))}
-            </span>
-          )}
-        </div>
+        {vramCfg && (
+          <div className="stack gap10" style={{ marginTop: 14 }}>
+            <div className="row gap10">
+              <span className="muted" style={{ fontSize: 13 }}>{t(lang, 'status')}:</span>
+              {!vramCfg.supported ? (
+                <span className="status-pill"><span className="d" />{t(lang, 'vram_cpu_status')}</span>
+              ) : vramCfg.offloaded ? (
+                <span className="status-pill idle"><span className="d" />{t(lang, 'vram_released')}</span>
+              ) : (
+                <span className="status-pill done"><span className="d" />{t(lang, 'vram_resident')}</span>
+              )}
+            </div>
+            <div className="hint" style={{ display: 'flex', gap: 6 }}>
+              <Icon name="info" size={13} style={{ flex: 'none', marginTop: 2, color: 'var(--accent)' }} />
+              <span>
+                {!vramCfg.supported
+                  ? t(lang, 'vram_cpu_note')
+                  : vramCfg.idle_minutes === 0
+                    ? t(lang, 'vram_off_hint')
+                    : t(lang, 'vram_on_hint').replace('{n}', String(vramCfg.idle_minutes))}
+              </span>
+            </div>
+          </div>
+        )}
       </SectionCard>
     </div>
   )

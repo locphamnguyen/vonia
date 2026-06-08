@@ -123,6 +123,12 @@ class QrResponse(BaseModel):
     plan_id: str
 
 
+class VramConfig(BaseModel):
+    """Body for POST /v1/vram — idle minutes before the model is moved off the
+    GPU to free VRAM. 0 = never (keep the model resident)."""
+    idle_minutes: int = Field(0, ge=0, le=1440)
+
+
 class ErrorBody(BaseModel):
     message: str
     type: str = "error"

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Icon, Btn, Select } from '../components/ui'
+import { Icon, Btn, Select, useToast } from '../components/ui'
 import { t, type Lang } from '../lib/i18n'
 import * as api from '../lib/api'
+
+// UI idle option <-> minutes (0 = "never"). After this long with no generation
+// the model is moved off the GPU, freeing VRAM until the next request.
+const idleToMinutes = (v: string) => (v === 'never' ? 0 : parseInt(v, 10))
+const minutesToIdle = (m: number) => (m === 0 ? 'never' : String(m))
 
 // Brand the model name for display only — the backend keeps its real model_id
 // (used to load weights / OpenAI-compat APIs); we just relabel it in the UI.
@@ -20,15 +25,30 @@ function SectionCard({ title, icon, children }: any) {
 }
 
 export function EnvTab({ lang }: { lang: Lang }) {
+  const toast = useToast()
   const [health, setHealth] = useState<any>(null)
   const [info, setInfo] = useState<any>(null)
   const [accel, setAccel] = useState('auto')
-  const [idle, setIdle] = useState('5')
+  const [vramCfg, setVramCfg] = useState<api.VramStatus | null>(null)
+  const [savingIdle, setSavingIdle] = useState(false)
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setHealth(null))
     api.info().then(setInfo).catch(() => setInfo(null))
+    api.getVram().then(setVramCfg).catch(() => setVramCfg(null))
   }, [])
+
+  const idle = vramCfg ? minutesToIdle(vramCfg.idle_minutes) : '5'
+  const changeIdle = async (v: string) => {
+    setSavingIdle(true)
+    try {
+      const next = await api.setVramIdle(idleToMinutes(v))
+      setVramCfg(next)
+      toast({ kind: 'good', title: t(lang, 'vram_saved') })
+    } catch (e: any) {
+      toast({ kind: 'err', title: String(e?.message || e) })
+    } finally { setSavingIdle(false) }
+  }
 
   const vram = health?.vram
   const device = health?.device || '—'
@@ -83,8 +103,22 @@ export function EnvTab({ lang }: { lang: Lang }) {
       <SectionCard title={t(lang, 'auto_vram')} icon="zap">
         <div className="row between wrap gap14">
           <span className="field-label" style={{ margin: 0 }}>{t(lang, 'when_idle')}</span>
-          <Select width={220} value={idle} onChange={setIdle} options={[
+          <Select width={220} value={idle} onChange={changeIdle} disabled={savingIdle || (vramCfg ? !vramCfg.supported : false)} options={[
             { value: '5', label: t(lang, 'min5') }, { value: '10', label: t(lang, 'min10') }, { value: '15', label: t(lang, 'min15') }, { value: 'never', label: t(lang, 'never') }]} />
+        </div>
+        <div className="hint" style={{ marginTop: 12 }}>
+          {vramCfg && !vramCfg.supported ? (
+            <span><Icon name="info" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{t(lang, 'vram_cpu_note')}</span>
+          ) : vramCfg?.offloaded ? (
+            <span className="status-pill idle"><span className="d" />{t(lang, 'vram_released')}</span>
+          ) : (
+            <span className="status-pill done"><span className="d" />{t(lang, 'vram_resident')}</span>
+          )}
+          {vramCfg && vramCfg.supported && (
+            <span className="muted" style={{ marginLeft: 10, fontSize: 12.5 }}>
+              {vramCfg.idle_minutes === 0 ? t(lang, 'vram_off_hint') : t(lang, 'vram_on_hint').replace('{n}', String(vramCfg.idle_minutes))}
+            </span>
+          )}
         </div>
       </SectionCard>
     </div>

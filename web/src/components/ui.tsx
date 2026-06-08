@@ -96,7 +96,7 @@ export function Btn({ icon, children, variant, size, block, onClick, disabled, i
 }
 
 /* ---------------- Select ---------------- */
-export function Select({ value, options, onChange, placeholder, renderValue, renderOption, width }: any) {
+export function Select({ value, options, onChange, placeholder, renderValue, renderOption, width, disabled }: any) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -106,7 +106,9 @@ export function Select({ value, options, onChange, placeholder, renderValue, ren
   const sel = options.find((o: any) => o.value === value)
   return (
     <div className="select" ref={ref} style={width ? { width } : undefined}>
-      <button className={'select-trigger' + (open ? ' open' : '')} onClick={() => setOpen(o => !o)}>
+      <button className={'select-trigger' + (open ? ' open' : '')} disabled={disabled}
+        style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+        onClick={() => { if (!disabled) setOpen(o => !o) }}>
         <span className="sv">{sel ? (renderValue ? renderValue(sel) : sel.label) : <span className="faint">{placeholder}</span>}</span>
         <Icon name="chevdown" size={16} className="chev" />
       </button>

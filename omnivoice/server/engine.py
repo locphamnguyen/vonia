@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
+import logging
 import os
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Tuple
 
@@ -24,6 +27,8 @@ from omnivoice.utils.common import get_best_device
 
 from .normalize import Normalizer
 from .voices import VoiceLibrary, VoiceNotFoundError
+
+log = logging.getLogger(__name__)
 
 _DTYPES = {"float16": torch.float16, "float32": torch.float32, "bfloat16": torch.bfloat16}
 
@@ -79,6 +84,18 @@ class Engine:
                                         thread_name_prefix="omnivoice-gpu")
         self._pending = 0  # accepted but not yet finished (running + waiting)
 
+        # Auto-release VRAM when idle: after `idle_minutes` with no GPU work the
+        # model is moved off the GPU (to CPU RAM) and the CUDA cache is emptied,
+        # freeing VRAM for other processes. The first request after that pays a
+        # few seconds to move the model back. 0 = disabled (keep resident).
+        # Only meaningful on CUDA; a no-op on CPU/MPS. Persisted so the choice
+        # survives restarts. Settings live next to the voices cache.
+        self._offloaded = False
+        self._last_active = time.monotonic()
+        self._settings_path = os.path.join(
+            os.path.dirname(os.path.normpath(os.path.expanduser(voices_dir))), "runtime.json")
+        self.idle_minutes = self._load_idle_minutes()
+
     # ------------------------------------------------------------------ utils
     def vram(self) -> Optional[dict]:
         if not str(self.device).startswith("cuda"):
@@ -94,17 +111,123 @@ class Engine:
     def queue_depth(self) -> int:
         return self._pending
 
+    @property
+    def offloaded(self) -> bool:
+        return self._offloaded
+
+    @property
+    def supports_idle_offload(self) -> bool:
+        return str(self.device).startswith("cuda")
+
     async def _run_gpu(self, fn, *args):
-        """Run a blocking GPU function under the concurrency limit."""
+        """Run a blocking GPU function under the concurrency limit. If the model
+        was offloaded to CPU after an idle period, bring it back first (the small
+        latency of this move is the cost of auto-releasing VRAM)."""
         if self._pending >= self.max_concurrency + self.max_queue:
             raise QueueFullError("Server busy: generation queue is full.")
         self._pending += 1
         try:
             async with self._sem:
                 loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(self._pool, fn, *args)
+                if self._offloaded:
+                    await loop.run_in_executor(self._pool, self._onload_blocking)
+                self._last_active = time.monotonic()
+                result = await loop.run_in_executor(self._pool, fn, *args)
+                self._last_active = time.monotonic()
+                return result
         finally:
             self._pending -= 1
+
+    # --------------------------------------------------------- idle VRAM release
+    def _load_idle_minutes(self) -> int:
+        """Persisted UI choice wins; else VONIA_VRAM_IDLE_MINUTES; else 0 (off)."""
+        try:
+            with open(self._settings_path, "r", encoding="utf-8") as f:
+                val = json.load(f).get("vram_idle_minutes")
+                if val is not None:
+                    return max(0, int(val))
+        except (OSError, ValueError, TypeError):
+            pass
+        try:
+            return max(0, int(os.environ.get("VONIA_VRAM_IDLE_MINUTES", "0")))
+        except ValueError:
+            return 0
+
+    def _persist_idle_minutes(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(self._settings_path), exist_ok=True)
+            with open(self._settings_path, "w", encoding="utf-8") as f:
+                json.dump({"vram_idle_minutes": self.idle_minutes}, f)
+        except OSError as e:  # noqa: BLE001
+            log.warning("Could not persist VRAM idle setting: %s", e)
+
+    def set_idle_minutes(self, minutes: int) -> None:
+        self.idle_minutes = max(0, int(minutes))
+        self._last_active = time.monotonic()  # don't offload immediately after a change
+        self._persist_idle_minutes()
+        log.info("VRAM auto-release set to %s.",
+                 f"{self.idle_minutes} min idle" if self.idle_minutes else "off")
+
+    def gpu_status(self) -> dict:
+        return {
+            "device": self.device,
+            "supported": self.supports_idle_offload,
+            "idle_minutes": self.idle_minutes,
+            "offloaded": self._offloaded,
+            "vram": self.vram(),
+        }
+
+    def _offload_blocking(self) -> None:
+        """Move the model off the GPU and free its VRAM. Runs in the GPU pool
+        thread, holding the semaphore so no job can touch the model meanwhile."""
+        if self._offloaded:
+            return
+        self.model.to("cpu")
+        # The ASR (Whisper) pipeline is a separate attribute, not a submodule, so
+        # .to() above doesn't touch it. Drop it to release its VRAM; transcribe()
+        # rebuilds it lazily on the next STT request.
+        if getattr(self.model, "_asr_pipe", None) is not None:
+            self.model._asr_pipe = None
+        if str(self.device).startswith("cuda"):
+            torch.cuda.empty_cache()
+        self._offloaded = True
+        log.info("Idle VRAM release: model moved to CPU, CUDA cache emptied.")
+
+    def _onload_blocking(self) -> None:
+        """Bring the model back onto the GPU for an incoming request."""
+        if not self._offloaded:
+            return
+        self.model.to(self.device)
+        self._offloaded = False
+        log.info("Model reloaded onto %s for incoming request.", self.device)
+
+    async def idle_monitor(self, tick: float = 15.0) -> None:
+        """Background loop: offload the model once it's been idle past the
+        configured threshold. Cancelled on shutdown."""
+        if not self.supports_idle_offload:
+            log.info("Idle VRAM monitor disabled (device=%s, not CUDA).", self.device)
+            return
+        log.info("Idle VRAM monitor started (checking every %ss).", tick)
+        while True:
+            await asyncio.sleep(tick)
+            try:
+                secs = self.idle_minutes * 60
+                if secs <= 0 or self._offloaded or self._pending > 0:
+                    continue
+                if (time.monotonic() - self._last_active) < secs:
+                    continue
+                async with self._sem:  # block jobs while we move the model
+                    secs = self.idle_minutes * 60  # re-read; may have changed
+                    if secs <= 0 or self._offloaded:
+                        continue
+                    if (time.monotonic() - self._last_active) < secs:
+                        continue
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(self._pool, self._offload_blocking)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                log.exception("Idle VRAM monitor iteration failed.")
 
     # ----------------------------------------------------------- voice prompts
     def _build_prompt(self, audio_path: str, ref_text: Optional[str]):

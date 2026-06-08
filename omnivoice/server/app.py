@@ -5,6 +5,7 @@ OpenAI-compatible /v1/audio/speech endpoint. Build with ``create_app(engine)``.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -25,7 +26,7 @@ from .normalize import NormalizerError
 from .presets import PRESETS
 from .schemas import (
     CheckoutRequest, CheckoutResponse, ErrorResponse, QrRequest, QrResponse,
-    SpeechRequest, SttResponse, TTSRequest, VoiceList, VoicePublic,
+    SpeechRequest, SttResponse, TTSRequest, VoiceList, VoicePublic, VramConfig,
 )
 from .sepay import PLANS, bank_config_from_env, client_from_env
 from .voices import VoiceExistsError, VoiceNotFoundError
@@ -188,7 +189,21 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
     async def health():
         return {"status": "ok", "model": engine.model_id, "device": engine.device,
                 "sampling_rate": engine.sampling_rate, "queue_depth": engine.queue_depth,
-                "max_concurrency": engine.max_concurrency, "vram": engine.vram()}
+                "max_concurrency": engine.max_concurrency, "vram": engine.vram(),
+                "offloaded": engine.offloaded}
+
+    # ----------------------------------------------------- VRAM auto-release
+    @app.get("/v1/vram")
+    async def vram_status():
+        """Current GPU residency + the configured idle auto-release timeout."""
+        return engine.gpu_status()
+
+    @app.post("/v1/vram")
+    async def vram_set(req: VramConfig):
+        """Set the idle minutes after which the model is moved off the GPU to
+        free VRAM (0 = never / keep resident)."""
+        engine.set_idle_minutes(req.idle_minutes)
+        return engine.gpu_status()
 
     @app.get("/v1/info")
     async def info():
@@ -476,6 +491,22 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
             days = PLANS.get(rec.plan_id, {}).get("days", 0)
             billing.mark_paid(code, days, sepay_transaction_id=tx_id)
         return {"success": True}
+
+    # ----------------------------------------- idle VRAM auto-release monitor
+    @app.on_event("startup")
+    async def _start_idle_monitor():
+        if engine.supports_idle_offload:
+            app.state.idle_task = asyncio.create_task(engine.idle_monitor())
+
+    @app.on_event("shutdown")
+    async def _stop_idle_monitor():
+        task = getattr(app.state, "idle_task", None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     # ------------------------------------------------- static UI (mounted last)
     # Mounted at "/" AFTER all API routes so explicit routes win; html=True

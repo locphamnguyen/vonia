@@ -57,6 +57,30 @@ export async function info(): Promise<any> {
   return res.json()
 }
 
+export interface VramStatus {
+  device: string
+  supported: boolean      // false on CPU/MPS — auto-release is a no-op there
+  idle_minutes: number    // 0 = never (model stays resident)
+  offloaded: boolean      // true while the model is parked on CPU (VRAM freed)
+  vram: { free_mb: number; used_mb: number; total_mb: number } | null
+}
+
+export async function getVram(): Promise<VramStatus> {
+  const res = await fetch(`${API_BASE}/v1/vram`)
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function setVramIdle(idle_minutes: number): Promise<VramStatus> {
+  const res = await fetch(`${API_BASE}/v1/vram`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idle_minutes }),
+  })
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
 export async function getPresets(): Promise<Preset[]> {
   const res = await fetch(`${API_BASE}/v1/presets`)
   if (!res.ok) await asError(res)

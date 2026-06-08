@@ -1,5 +1,5 @@
 /* Results table + generation bar — ported & wired to real audio blobs. */
-import React from 'react'
+import React, { useState } from 'react'
 import { Icon, Btn } from './ui'
 import { t, type Lang } from '../lib/i18n'
 import { avatarColor } from '../lib/data'
@@ -33,6 +33,10 @@ function download(row: GenRow, name: string) {
 
 export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fmt = 'wav' }:
   { rows: GenRow[]; lang: Lang; cols?: 'content' | 'time' | 'dialogue'; onRetry?: (id: number) => void; onPlay?: (row: GenRow) => void; fmt?: string }) {
+  // Selecting a row loads its audio into the bottom player (if it's ready) so
+  // the user can just hit play there — and highlights the row (# + content).
+  const [selId, setSelId] = useState<number | null>(null)
+  const select = (r: GenRow) => { setSelId(r.id); if (r.url) onPlay && onPlay(r) }
   return (
     <table className="rtable">
       <thead>
@@ -47,7 +51,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
       </thead>
       <tbody>
         {rows.map(r => (
-          <tr key={r.id}>
+          <tr key={r.id} className={selId === r.id ? 'sel' : ''} onClick={() => select(r)}>
             <td className="num">{String(r.id).padStart(2, '0')}</td>
             {(cols === 'dialogue' || cols === 'time') && <td className="tcode">{r.time || '00:00'}</td>}
             {cols === 'dialogue' && <td>
@@ -57,16 +61,16 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
               </span>
             </td>}
             <td style={{ maxWidth: 0 }}>
-              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.error || r.text}>{r.text}</div>
+              <div className="rcontent" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.error || r.text}>{r.text}</div>
             </td>
             <td><StatusCell state={r.state} lang={lang} /></td>
             <td>
               <div className="row-actions">
-                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'speak')} onClick={() => onPlay && onPlay(r)}><Icon name="play" size={14} fill /></button>
-                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'download')} onClick={() => download(r, `vonia_${String(r.id).padStart(2, '0')}.${fmt}`)}><Icon name="download" size={14} /></button>
+                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'speak')} onClick={(e) => { e.stopPropagation(); select(r) }}><Icon name="play" size={14} fill /></button>
+                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'download')} onClick={(e) => { e.stopPropagation(); download(r, `vonia_${String(r.id).padStart(2, '0')}.${fmt}`) }}><Icon name="download" size={14} /></button>
                 {r.state === 'error'
-                  ? <button className="mini-btn" title={t(lang, 'retry')} onClick={() => onRetry && onRetry(r.id)}><Icon name="refresh" size={14} /></button>
-                  : <button className="mini-btn danger" disabled={r.state === 'processing'} title={t(lang, 'delete')}><Icon name="trash" size={14} /></button>}
+                  ? <button className="mini-btn" title={t(lang, 'retry')} onClick={(e) => { e.stopPropagation(); onRetry && onRetry(r.id) }}><Icon name="refresh" size={14} /></button>
+                  : <button className="mini-btn danger" disabled={r.state === 'processing'} title={t(lang, 'delete')} onClick={(e) => e.stopPropagation()}><Icon name="trash" size={14} /></button>}
               </div>
             </td>
           </tr>

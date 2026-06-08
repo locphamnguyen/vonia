@@ -470,6 +470,10 @@ button { font-family: inherit; }
 }
 .rtable tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border-faint); font-size: 13.5px; vertical-align: middle; }
 .rtable tbody tr:hover { background: var(--surface-2); }
+.rtable tbody tr { cursor: pointer; }
+.rtable tbody tr.sel { background: var(--accent-soft); }
+.rtable tbody tr.sel .num { color: var(--accent); }
+.rtable tbody tr.sel .rcontent { color: var(--accent); font-weight: 600; }
 .rtable .num { color: var(--text-faint); font-variant-numeric: tabular-nums; width: 36px; }
 .rtable .tcode { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .row-actions { display: flex; gap: 6px; }

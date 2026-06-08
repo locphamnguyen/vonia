@@ -25,17 +25,8 @@ function useIsMobile() {
   return m
 }
 
-// Trial meter — single source of truth so the days label and the bar can't
-// drift apart. Placeholder values until the license API exposes real trial days.
-const TRIAL_DAYS_LEFT = 21
-const TRIAL_DAYS_TOTAL = 30
-
 function Sidebar({ lang, nav, setNav, onSettings, sub }: any) {
   const active = !!sub?.active
-  const daysLeft = active ? sub.days_left : TRIAL_DAYS_LEFT
-  const pct = active
-    ? Math.max(0, Math.min(100, Math.round((daysLeft / 30) * 100)))
-    : Math.max(0, Math.min(100, Math.round((TRIAL_DAYS_LEFT / TRIAL_DAYS_TOTAL) * 100)))
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -45,26 +36,19 @@ function Sidebar({ lang, nav, setNav, onSettings, sub }: any) {
           <div className="brand-sub">Voice Studio</div>
         </div>
       </div>
-      <div className="nav-section-label">Studio</div>
       <button className={'nav-item' + (nav === 'studio' ? ' active' : '')} onClick={() => setNav('studio')}>
         <Icon name="library" size={18} className="ico" />{t(lang, 'nav_studio')}
       </button>
       <button className={'nav-item' + (nav === 'webhook' ? ' active' : '')} onClick={() => setNav('webhook')}>
         <Icon name="webhook" size={18} className="ico" />{t(lang, 'nav_webhook')}
-        <span className="nav-badge">Beta</span>
       </button>
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
-        <div className="plan-card" onClick={onSettings} style={{ cursor: 'pointer' }} title={t(lang, 'nav_settings')}>
-          <div className="plan-top">
-            <span className="plan-pill"><Icon name="bolt" size={12} />{active ? t(lang, 'plan_studio') : t(lang, 'plan_trial')}</span>
-            <span className="grow" />
-            <span className="plan-meta" style={{ margin: 0 }}>{t(lang, 'plan_days').replace('{n}', String(daysLeft))}</span>
-          </div>
-          <div className="plan-bar"><i style={{ width: `${pct}%` }} /></div>
-        </div>
         <button className="nav-item" onClick={onSettings}>
           <Icon name="settings" size={18} className="ico" />{t(lang, 'nav_settings')}
+        </button>
+        <button className="plan-btn" onClick={onSettings} title={t(lang, 'nav_settings')}>
+          <Icon name="bolt" size={14} />{active ? t(lang, 'plan_studio') : t(lang, 'plan_trial')}
         </button>
         <div className="social-row">
           <button className="social-btn" title="Discord" aria-label="Discord"><Icon name="discord" size={17} /></button>

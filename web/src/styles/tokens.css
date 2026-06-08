@@ -550,7 +550,7 @@ button { font-family: inherit; }
 
 .vlist { display: flex; flex-direction: column; gap: 4px; max-height: 296px; overflow-y: auto; padding-right: 4px; }
 .vrow {
-  display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: var(--r-md);
+  display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: var(--r-md);
   cursor: pointer; border: 1px solid transparent; transition: background .14s, border-color .14s;
 }
 .vrow:hover { background: var(--surface-2); }

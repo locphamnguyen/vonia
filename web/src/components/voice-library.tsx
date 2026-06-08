@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Icon, useToast } from './ui'
 import { t, type Lang } from '../lib/i18n'
-import { VOICES, avatarColor, type Voice } from '../lib/data'
+import { VOICES, type Voice } from '../lib/data'
 import { useVoices } from '../app/store'
 import * as api from '../lib/api'
 
@@ -19,7 +19,6 @@ function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loadi
       <span className={'star' + (starred ? ' on' : '')} onClick={(e) => { e.stopPropagation(); onStar() }} title="Star">
         <Icon name="star" size={16} fill={starred} />
       </span>
-      <span className="av" style={{ background: v.color || avatarColor(v.name) }}>{v.name[0]}</span>
       <span className="vmeta">
         <div className="vname">{v.name}</div>
         <div className="vdesc">{lang === 'en' ? (v.en || '') : (v.vi || '')}</div>
@@ -36,8 +35,8 @@ function VoiceRow({ v, lang, selected, onSelect, starred, onStar, playing, loadi
   )
 }
 
-export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete, removable, mixedCloned, previewLang }:
-  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void; removable?: boolean; mixedCloned?: boolean; previewLang?: string }) {
+export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, onDelete, removable, mixedCloned, previewLang, hideTools }:
+  { voices: UIVoice[]; lang: Lang; selected: string; onSelect: (n: string) => void; starred: Set<string>; onStar: (n: string) => void; onDelete?: (v: UIVoice) => void; removable?: boolean; mixedCloned?: boolean; previewLang?: string; hideTools?: boolean }) {
   const [q, setQ] = useState('')
   const [removed, setRemoved] = useState<Set<string>>(() => new Set())
   const [gender, setGender] = useState<'all' | 'M' | 'F'>('all')
@@ -103,30 +102,34 @@ export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, o
   ]
   return (
     <div className="stack" style={{ minWidth: 0 }}>
-      <div className="vlib-toolbar">
-        <div className="search">
-          <Icon name="search" size={15} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t(lang, 'search_voice')} />
-          {q && <span style={{ cursor: 'pointer', display: 'inline-flex' }} onClick={() => setQ('')} aria-label={t(lang, 'clear')}><Icon name="x" size={14} className="faint" /></span>}
-        </div>
-      </div>
-      <div className="filter-chips">
-        {genderChips.map(c => (
-          <button key={c.id} className={'chip' + (gender === c.id ? ' on' : '')} onClick={() => setGender(c.id)}>
-            {c.label}
-          </button>
-        ))}
-        <button className={'chip' + (starOnly ? ' on' : '')} onClick={() => setStarOnly(s => !s)}>
-          <Icon name="star" size={12} fill style={{ marginRight: 4, verticalAlign: '-1px' }} />
-          {t(lang, 'starred')}
-        </button>
-        {mixedCloned && (
-          <button className={'chip' + (clonedOnly ? ' on' : '')} onClick={() => setClonedOnly(s => !s)}>
-            <Icon name="copy" size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} />
-            {t(lang, 'cloned')}
-          </button>
-        )}
-      </div>
+      {!hideTools && (
+        <>
+          <div className="vlib-toolbar">
+            <div className="search">
+              <Icon name="search" size={15} />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder={t(lang, 'search_voice')} />
+              {q && <span style={{ cursor: 'pointer', display: 'inline-flex' }} onClick={() => setQ('')} aria-label={t(lang, 'clear')}><Icon name="x" size={14} className="faint" /></span>}
+            </div>
+          </div>
+          <div className="filter-chips">
+            {genderChips.map(c => (
+              <button key={c.id} className={'chip' + (gender === c.id ? ' on' : '')} onClick={() => setGender(c.id)}>
+                {c.label}
+              </button>
+            ))}
+            <button className={'chip' + (starOnly ? ' on' : '')} onClick={() => setStarOnly(s => !s)}>
+              <Icon name="star" size={12} fill style={{ marginRight: 4, verticalAlign: '-1px' }} />
+              {t(lang, 'starred')}
+            </button>
+            {mixedCloned && (
+              <button className={'chip' + (clonedOnly ? ' on' : '')} onClick={() => setClonedOnly(s => !s)}>
+                <Icon name="copy" size={12} style={{ marginRight: 4, verticalAlign: '-1px' }} />
+                {t(lang, 'cloned')}
+              </button>
+            )}
+          </div>
+        </>
+      )}
       {filtered.length ? (
         <div className="vlist">
           {filtered.map(v => (
@@ -173,7 +176,7 @@ export function VoiceStore({ lang, selected, onSelect, starred, onStar, yourVoic
           <div className="row between" style={{ marginBottom: 10 }}>
             <span className="section-title">{t(lang, 'available')} <span className="muted">({VOICES.length} {t(lang, 'samples')})</span></span>
           </div>
-          <VoiceList voices={VOICES as Voice[]} lang={lang} selected={selected} onSelect={onSelect} starred={starred} onStar={onStar} removable />
+          <VoiceList voices={VOICES as Voice[]} lang={lang} selected={selected} onSelect={onSelect} starred={starred} onStar={onStar} removable hideTools />
         </div>
         <div className="vlib-col">
           <div className="row between" style={{ marginBottom: 10 }}>

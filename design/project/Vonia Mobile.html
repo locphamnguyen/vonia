@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vonia — Mobile</title>
+  <link rel="stylesheet" href="vonia/tokens.css" />
+  <link rel="stylesheet" href="vonia/mobile.css" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #06080f; overflow: hidden; }
+    #stage { position: fixed; inset: 0; display: grid; place-items: center;
+      background:
+        radial-gradient(900px 600px at 50% -10%, rgba(34,211,238,0.06), transparent 60%),
+        #06080f; }
+    #frame { transform-origin: center center; }
+  </style>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="stage"><div id="frame"><div id="root"></div></div></div>
+  <script type="text/babel" src="vonia/data.jsx"></script>
+  <script type="text/babel" src="vonia/ui.jsx"></script>
+  <script type="text/babel" src="vonia/ios-frame.jsx"></script>
+  <script type="text/babel" src="vonia/mobile.jsx"></script>
+  <script type="text/babel">
+    ReactDOM.createRoot(document.getElementById('root')).render(<MobileApp />);
+    function fitFrame() {
+      const f = document.getElementById('frame');
+      const s = Math.min(1, (window.innerHeight - 32) / 874, (window.innerWidth - 24) / 402);
+      f.style.transform = 'scale(' + s + ')';
+    }
+    window.addEventListener('resize', fitFrame);
+    setTimeout(fitFrame, 60); setTimeout(fitFrame, 400);
+  </script>
+</body>
+</html>

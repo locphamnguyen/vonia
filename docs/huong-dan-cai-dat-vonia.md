@@ -20,6 +20,7 @@ Tài liệu này hướng dẫn **cài đặt từ đầu**, **chạy nền vĩn
 11. [Xử lý sự cố](#11-xử-lý-sự-cố)
 12. [⚠️ Cảnh báo riêng cho máy Olares/k3s](#12-️-cảnh-báo-riêng-cho-máy-olaresk3s)
 13. [Bảo mật](#13-bảo-mật)
+14. [Đăng nhập Zitadel OIDC (Google) + Redis — deploy hoàn chỉnh](#14-đăng-nhập-bằng-zitadel-oidc-google--redis--deploy-hoàn-chỉnh)
 
 ---
 
@@ -46,7 +47,7 @@ Tài liệu này hướng dẫn **cài đặt từ đầu**, **chạy nền vĩn
 | **Model** | OmniVoice (`k2-fsa/OmniVoice`), tải tự động từ HuggingFace, nạp trên GPU (~2.2 GB VRAM ở float16). | HF cache: `~/.cache/huggingface` |
 | **Tunnel** | `cloudflared` đưa cổng nội bộ 8002 ra HTTPS công khai. | `cloudflared.service` |
 | **Quản lý tiến trình** | `systemd` đảm bảo tự chạy khi boot + tự bật lại khi crash. | `/etc/systemd/system/vonia.service` |
-| **Đăng nhập** | Một tài khoản dùng chung (cookie phiên + HTTP Basic), bảo vệ toàn bộ trừ webhook. | [omnivoice/server/auth.py](../omnivoice/server/auth.py) |
+| **Đăng nhập** | **Zitadel OIDC (SSO qua Google)** + session lưu Redis, chặn theo allowlist email. Bảo vệ toàn bộ trừ `/auth/*`, `/health`, webhook. Xem [mục 14](#14-đăng-nhập-bằng-zitadel-oidc-google--redis--deploy-hoàn-chỉnh). | [omnivoice/server/auth.py](../omnivoice/server/auth.py) |
 
 ---
 
@@ -402,4 +403,115 @@ Trước mọi thao tác liên quan Docker / nvidia-ctk / containerd: kiểm tra
 
 ---
 
-*Tài liệu liên quan:* [payment-integration.md](payment-integration.md) · [api.md](api.md) · [generation-parameters.md](generation-parameters.md) · [voice-design.md](voice-design.md)
+## 14. Đăng nhập bằng Zitadel OIDC (Google) + Redis — deploy hoàn chỉnh
+
+> **Cập nhật 11/06/2026.** Cơ chế đăng nhập user/pass dùng chung (`VONIA_AUTH_USER/PASS`, mục 3.5/4/10) **đã được thay thế** bằng đăng nhập Single Sign-On qua **Zitadel OIDC** (login bằng Google), phiên lưu trong **Redis**. Phần này ghi lại **toàn bộ các bước deploy phía server Vonia** để kích hoạt. Phần cấu hình Zitadel dashboard (tạo Application, bật Google IDP) xem [zitadel-auth-plan.md](zitadel-auth-plan.md) — Phần 2.
+
+### 14.0. Kiến trúc đăng nhập
+
+```
+Trình duyệt → GET /auth/login
+  → 303 redirect sang Zitadel (/oauth/v2/authorize?code_challenge=… PKCE)
+  → User login Google tại Zitadel
+  → Zitadel redirect về /auth/callback?code=…&state=…
+  → Server đổi code → access_token → GET /oidc/v1/userinfo (lấy email)
+  → check email ∈ VONIA_ALLOWED_EMAILS → tạo session Redis (TTL 7 ngày)
+  → Set-Cookie vonia_session → redirect /
+```
+
+Thành phần liên quan: [omnivoice/server/auth.py](../omnivoice/server/auth.py) (OIDCAuth, PKCE, session) · [omnivoice/server/app.py](../omnivoice/server/app.py) (routes `/auth/*`, middleware `_gate`) · [k8s/redis.yaml](../k8s/redis.yaml) (Redis trên k3s, NodePort 30379).
+
+### 14.1. Biến môi trường `.env` cần có
+
+```bash
+# --- Zitadel OIDC ---
+ZITADEL_DOMAIN=auth.locnguyendata.com
+ZITADEL_CLIENT_ID=376842607394881539                       # Client ID của App "Vonia" trên Zitadel
+ZITADEL_CLIENT_SECRET=<secret tạo lúc tạo App>             # mất thì: Zitadel console → App Vonia → Regenerate Secret
+VONIA_ALLOWED_EMAILS=                                       # ĐỂ TRỐNG = open mode (mọi tài khoản Google vào được); điền danh sách (phân tách dấu phẩy) nếu muốn giới hạn
+# VONIA_BLOCKED_DOMAINS=                                    # (tùy chọn) domain bị chặn thêm; domain nội bộ Zitadel luôn tự bị chặn
+VONIA_SESSION_SECRET=<chuỗi hex 64 ký tự cố định>          # openssl rand -hex 32 — đặt cố định để không bị logout sau restart
+VONIA_PUBLIC_URL=https://vonia.locnguyendata.com           # dùng dựng redirect_uri = <VONIA_PUBLIC_URL>/auth/callback
+
+# --- Redis (lưu session) ---
+REDIS_URL=redis://192.168.1.50:30379                        # IP NODE, KHÔNG dùng localhost (xem cạm bẫy #2)
+```
+
+> ⚠️ **Cạm bẫy #1 — biến trùng key.** Hàm nạp `.env` ([omnivoice/cli/serve.py](../omnivoice/cli/serve.py) → `_load_dotenv`) dùng `os.environ.setdefault`, nên nếu một key xuất hiện **nhiều lần** thì **dòng ĐẦU TIÊN thắng**. Đừng để dòng placeholder (`<fill_in_from_zitadel>`) nằm phía trên giá trị thật — nó sẽ được nạp thay cho giá trị thật và Zitadel báo `client_id not found`. Mỗi key chỉ khai báo **một lần**.
+>
+> ⚠️ **Cạm bẫy #2 — NodePort không thông qua `localhost`.** k3s trên máy này có `net.ipv4.conf.all.route_localnet=0`, nên `redis://localhost:30379` bị `Connection refused`. Phải dùng **IP node**. Lấy IP node:
+> ```bash
+> kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'   # vd: 192.168.1.50
+> ```
+> Nếu IP node đổi (DHCP), cập nhật lại `REDIS_URL`.
+
+### 14.2. Các bước deploy (theo đúng thứ tự)
+
+```bash
+cd /root/0project/OmniVoice
+
+# Bước A — Deploy Redis trên k3s (idempotent, chạy lại được)
+kubectl apply -f k8s/redis.yaml
+kubectl -n vonia rollout status deploy/redis --timeout=90s
+
+# Verify Redis (qua IP node, KHÔNG qua localhost):
+NODEIP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+.venv/bin/python -c "import socket;s=socket.create_connection(('$NODEIP',30379),3);s.sendall(b'PING\r\n');print(s.recv(20))"
+# Mong đợi: b'+PONG\r\n'
+
+# Bước B — Đảm bảo .env đúng (mục 14.1) rồi restart service để nạp code + .env mới
+systemctl restart vonia
+
+# Đợi service sẵn sàng
+for i in $(seq 1 12); do [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8002/health)" = "200" ] && { echo up; break; }; sleep 5; done
+```
+
+### 14.3. Verify auth đã bật
+
+```bash
+# /auth/login phải trả 303 redirect sang Zitadel với client_id THẬT
+curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" http://127.0.0.1:8002/auth/login
+# Mong đợi: 303 -> https://auth.locnguyendata.com/oauth/v2/authorize?...&client_id=376842607394881539...
+
+# Kiểm tra log khởi động xác nhận Redis đã kết nối
+journalctl -u vonia --since "2 min ago" --no-pager | grep -iE "Redis connected|auth"
+# Mong đợi: "Redis connected: redis://192.168.1.50:30379"
+```
+
+Test qua domain public:
+```bash
+curl -s -o /dev/null -w "%{http_code} -> %{redirect_url}\n" https://vonia.locnguyendata.com/auth/login   # 303 -> Zitadel
+```
+
+### 14.4. Test thủ công end-to-end (trên trình duyệt — cần đăng nhập Google)
+
+1. Mở `https://vonia.locnguyendata.com` → tự redirect sang Zitadel → bấm **Continue with Google**.
+2. Login bằng email **trong** `VONIA_ALLOWED_EMAILS` (`locphamnguyen@gmail.com`) → phải quay về app, sidebar hiện email.
+3. Bấm **Logout** → session Redis bị xoá, quay về trang Zitadel.
+4. Thử login bằng email **không** trong allowlist → phải thấy trang lỗi **403**.
+
+### 14.5. Xử lý sự cố đăng nhập
+
+| Triệu chứng | Nguyên nhân & cách xử lý |
+|---|---|
+| `/auth/login` trả **401/404** thay vì 303 | Service đang chạy bản cũ (trước khi có code auth). `systemctl restart vonia`. |
+| `/auth/login` trả **503** `auth_unconfigured` | Thiếu `ZITADEL_DOMAIN` hoặc `ZITADEL_CLIENT_ID` trong `.env` (hoặc bị placeholder ghi đè — cạm bẫy #1). |
+| Zitadel báo `client_id not found` | `ZITADEL_CLIENT_ID` sai/placeholder. Kiểm tra mục 14.1 + cạm bẫy #1. |
+| App không khởi động, log lỗi Redis | `REDIS_URL` sai (dùng localhost — cạm bẫy #2) hoặc pod Redis chưa Running. Kiểm tra `kubectl -n vonia get pods`. |
+| `redirect_uri_mismatch` | Redirect URI trong Zitadel ≠ `<VONIA_PUBLIC_URL>/auth/callback`. Xem [zitadel-auth-plan.md](zitadel-auth-plan.md) Z3. |
+| Trang **403** sau khi login Google | Đang bật allowlist và email không nằm trong `VONIA_ALLOWED_EMAILS`. Thêm email, **hoặc để trống** biến này để cho mọi tài khoản Google vào (open mode), rồi `systemctl restart vonia`. Lưu ý: tài khoản nội bộ Zitadel (`@zitadel.<domain>`) luôn bị chặn. |
+| Bị logout sau mỗi lần restart | `VONIA_SESSION_SECRET` chưa cố định (đang sinh ngẫu nhiên mỗi lần). Đặt giá trị cố định. |
+
+### 14.6. Vận hành Redis
+
+```bash
+kubectl -n vonia get pods            # trạng thái pod Redis
+kubectl -n vonia logs deploy/redis   # log Redis
+kubectl -n vonia rollout restart deploy/redis   # restart Redis (sẽ mất session đang lưu → user phải login lại)
+```
+
+> Session lưu trong Redis dạng in-memory (manifest hiện tại không gắn volume bền). Restart Redis = mọi người phải đăng nhập lại — chấp nhận được với app một/ít người dùng.
+
+---
+
+*Tài liệu liên quan:* [zitadel-auth-plan.md](zitadel-auth-plan.md) · [payment-integration.md](payment-integration.md) · [api.md](api.md) · [generation-parameters.md](generation-parameters.md) · [voice-design.md](voice-design.md)

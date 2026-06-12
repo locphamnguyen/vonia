@@ -2,7 +2,7 @@
    VONIA — App shell (sidebar, tabs, theme/lang, routing)
    ============================================================ */
 
-function Sidebar({ lang, nav, setNav, onSettings }) {
+function Sidebar({ lang, nav, setNav, onSettings, onDemoGate }) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -36,6 +36,12 @@ function Sidebar({ lang, nav, setNav, onSettings }) {
         <button className="nav-item" onClick={onSettings}>
           <Icon name="settings" size={18} className="ico" />{t(lang,'nav_settings')}
         </button>
+        {onDemoGate && (
+          <button className="nav-item" onClick={onDemoGate}
+            style={{ color: 'var(--bad)', borderColor: 'var(--bad-soft)' }}>
+            <Icon name="warn" size={18} className="ico" />Demo: License hết hạn
+          </button>
+        )}
         <div className="social-row">
           <button className="social-btn" title="Discord"><Icon name="discord" size={17} /></button>
           <button className="social-btn" title="YouTube"><Icon name="youtube" size={17} /></button>
@@ -84,6 +90,7 @@ function App() {
   const [tab, setTab] = useState('clone');
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('vonia.onboarded') !== '1');
+  const [showLicenseGate, setShowLicenseGate] = useState(false);
   const [starred, setStarred] = useState(() => new Set(JSON.parse(localStorage.getItem('vonia.starred')||'[]')));
 
   useEffect(()=>{ document.documentElement.dataset.theme = theme; localStorage.setItem('vonia.theme', theme); },[theme]);
@@ -97,7 +104,8 @@ function App() {
     <AppCtx.Provider value={{ lang, theme }}>
       <ToastProvider>
         <div className="app">
-          <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={()=>setShowSettings(true)} />
+          <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={()=>setShowSettings(true)}
+            onDemoGate={()=>setShowLicenseGate(true)} />
           <div className="main">
             {nav==='studio' ? (
               <React.Fragment>
@@ -125,6 +133,14 @@ function App() {
         </div>
         {showSettings && <SettingsModal lang={lang} setLang={setLang} onClose={()=>setShowSettings(false)} />}
         {showOnboarding && <Onboarding lang={lang} onClose={closeOnboarding} onGoTo={setTab} />}
+        {showLicenseGate && (
+          <LicenseGate
+            expiresAt="2026-06-01"
+            plan="Hàng tháng"
+            onRenew={() => {}}
+            onLogout={() => setShowLicenseGate(false)}
+          />
+        )}
       </ToastProvider>
     </AppCtx.Provider>
   );

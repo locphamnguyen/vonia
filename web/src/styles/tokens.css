@@ -228,6 +228,22 @@ button { font-family: inherit; }
 }
 .plan-btn:hover { filter: brightness(1.06); }
 
+.user-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; border-radius: var(--r-sm);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.user-email {
+  flex: 1; min-width: 0; font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.logout-btn {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: var(--r-sm);
+  color: var(--text-muted); text-decoration: none; transition: .15s;
+}
+.logout-btn:hover { color: var(--text); background: var(--surface-2); }
+
 .social-row { display: flex; gap: 7px; }
 .social-btn {
   flex: 1; display: grid; place-items: center; height: 34px;

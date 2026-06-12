@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vonia — Brand Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --bg:        #070b16;
+    --bg-grad-1: #0a1020;
+    --bg-grad-2: #070a13;
+    --surface:   #0e1525;
+    --surface-2: #131c30;
+    --surface-3: #18233b;
+    --elevated:  #16203a;
+    --inset:     #0a0f1d;
+
+    --border:        rgba(148,173,214,0.12);
+    --border-strong: rgba(148,173,214,0.22);
+    --border-faint:  rgba(148,173,214,0.07);
+
+    --text:       #eaf0fb;
+    --text-soft:  #b9c4da;
+    --text-muted: #7e8aa6;
+    --text-faint: #586484;
+
+    --accent:        #22d3ee;
+    --accent-2:      #38e0d4;
+    --accent-strong: #06b6d4;
+    --accent-deep:   #0e7490;
+    --accent-soft:   rgba(34,211,238,0.14);
+    --accent-softer: rgba(34,211,238,0.08);
+    --accent-line:   rgba(34,211,238,0.35);
+    --grad: linear-gradient(100deg, #22d3ee 0%, #3b82f6 100%);
+    --grad-soft: linear-gradient(100deg, rgba(34,211,238,0.16) 0%, rgba(59,130,246,0.16) 100%);
+    --accent-ink: #04141a;
+
+    --good: #34d399; --warn: #fbbf24; --bad: #f87171; --info: #60a5fa;
+    --good-soft: rgba(52,211,153,0.14); --warn-soft: rgba(251,191,36,0.13); --bad-soft: rgba(248,113,113,0.14);
+
+    --shadow:    0 8px 24px -8px rgba(0,0,0,0.55);
+    --shadow-lg: 0 24px 60px -16px rgba(0,0,0,0.7);
+    --shadow-pop:0 18px 50px -12px rgba(0,0,0,0.75);
+
+    --r-xs:6px; --r-sm:8px; --r-md:11px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+    --ease: cubic-bezier(0.32,0.72,0,1);
+    --maxw: 1080px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; font-family: var(--font-sans); color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    line-height: 1.5;
+  }
+  ::selection { background: var(--accent-soft); }
+  a { color: inherit; text-decoration: none; }
+  h1,h2,h3,h4,p { margin: 0; }
+
+  /* ---------- NAV ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(160%) blur(18px);
+    background: rgba(7,11,22,0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: var(--maxw); margin: 0 auto; height: 60px; padding: 0 28px;
+    display: flex; align-items: center; gap: 18px;
+  }
+  .nav-mark { display: flex; align-items: center; gap: 11px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
+  .nav-mark .dot { color: var(--accent); }
+  .nav-glyph {
+    width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+    display: grid; place-items: center; background: var(--grad);
+    box-shadow: 0 6px 18px -6px var(--accent-strong), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .nav-links { display: flex; gap: 4px; margin-left: auto; }
+  .nav-links a {
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    padding: 8px 12px; border-radius: var(--r-sm); transition: .15s;
+  }
+  .nav-links a:hover { color: var(--text); background: var(--surface-2); }
+  @media (max-width: 820px){ .nav-links { display: none; } }
+
+  /* ---------- LAYOUT ---------- */
+  section { padding: 92px 28px; }
+  .container { max-width: var(--maxw); margin: 0 auto; }
+  .center { text-align: center; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 18px;
+  }
+  .display { font-size: clamp(40px, 6vw, 68px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.04; }
+  .h1 { font-size: clamp(32px, 4.4vw, 50px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
+  .h2 { font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.12; }
+  .lead { font-size: clamp(16px, 1.8vw, 19px); color: var(--text-soft); line-height: 1.6; max-width: 60ch; margin: 18px auto 0; font-weight: 400; }
+  .center .lead { margin-left: auto; margin-right: auto; }
+  .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .divider-line { max-width: var(--maxw); margin: 0 auto; height: 1px; background: var(--border); }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative; overflow: hidden; text-align: center;
+    padding: 116px 28px 104px;
+    background:
+      radial-gradient(1100px 560px at 50% -12%, rgba(34,211,238,0.14), transparent 62%),
+      linear-gradient(180deg, var(--bg-grad-1), var(--bg-grad-2));
+  }
+  .hero-glyph {
+    width: 96px; height: 96px; border-radius: 26px; margin: 0 auto 30px;
+    display: grid; place-items: center; background: var(--grad);
+    box-shadow: 0 24px 60px -18px var(--accent-strong), inset 0 1px 0 rgba(255,255,255,0.45);
+  }
+  .hero h1 { font-size: clamp(44px, 7vw, 88px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .hero h1 .dot { color: var(--accent); }
+  .hero .lead { font-size: clamp(17px, 2vw, 21px); margin-top: 22px; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 34px; flex-wrap: wrap; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px;
+    border-radius: var(--r-pill); font-size: 14.5px; font-weight: 600;
+    border: 1px solid var(--border-strong); color: var(--text); transition: .15s; cursor: pointer;
+  }
+  .cta:hover { border-color: var(--accent-line); background: var(--surface-2); }
+  .cta--filled { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 700; box-shadow: 0 12px 30px -10px var(--accent-strong); }
+  .cta--filled:hover { filter: brightness(1.07); }
+  .hero-meta {
+    display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;
+    margin-top: 46px; font-size: 13px; color: var(--text-muted);
+  }
+  .hero-meta strong { color: var(--text); font-weight: 600; }
+
+  /* ---------- LOGO ---------- */
+  .logo-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 44px; }
+  @media (max-width: 720px){ .logo-pair { grid-template-columns: 1fr; } }
+  .logo-stage {
+    border-radius: var(--r-xl); min-height: 300px; display: grid; place-items: center;
+    border: 1px solid var(--border); position: relative; overflow: hidden;
+  }
+  .logo-stage .tagstage { position: absolute; bottom: 14px; left: 16px; font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
+  .logo-stage--dark { background: linear-gradient(180deg, var(--surface), var(--inset)); }
+  .logo-stage--light { background: #f4f6fb; }
+  .logo-stage--light .tagstage { color: #93a0b8; }
+  .logo-stage--grad { background: var(--grad); }
+  .logo-stage--grad .tagstage { color: rgba(4,20,26,0.6); }
+  .logo-lockup { display: flex; align-items: center; gap: 18px; }
+  .logo-lockup .glyph { width: 76px; height: 76px; border-radius: 20px; display: grid; place-items: center; background: var(--grad); box-shadow: 0 16px 40px -14px var(--accent-strong), inset 0 1px 0 rgba(255,255,255,0.4); flex-shrink: 0; }
+  .logo-lockup--mono .glyph { background: var(--surface-3); box-shadow: none; border: 1px solid var(--border-strong); }
+  .logo-lockup--onlight .glyph { box-shadow: 0 16px 40px -14px rgba(8,145,178,0.5); }
+  .logo-word { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .logo-word .dot { color: var(--accent); }
+  .logo-lockup--onlight .logo-word { color: #131c2e; }
+  .logo-lockup--onlight .logo-word .dot { color: #0891b2; }
+  .logo-lockup--ondark .logo-word { color: #04141a; }
+  .logo-lockup--ondark .logo-word .dot { color: #04141a; }
+  .logo-sub { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; margin-top: 6px; }
+  .logo-lockup--onlight .logo-sub { color: #647089; }
+  .logo-lockup--ondark .logo-sub { color: rgba(4,20,26,0.62); }
+
+  .full-lockup { margin-top: 22px; padding: 60px 22px; }
+
+  /* feature 2-col */
+  .feature { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; }
+  @media (max-width: 760px){ .feature { grid-template-columns: 1fr; gap: 30px; } }
+  .feature .body p { color: var(--text-soft); margin-top: 14px; max-width: 42ch; line-height: 1.65; }
+  .feature .caption { font-size: 13px; color: var(--text-muted); margin-top: 14px; max-width: 42ch; line-height: 1.6; }
+  .feature strong { color: var(--text); }
+  .clearspace {
+    aspect-ratio: 1 / 1; max-width: 320px; margin: 0 auto; width: 100%;
+    border-radius: var(--r-lg); background: var(--inset);
+    border: 1px dashed var(--accent-line); display: grid; place-items: center; position: relative;
+  }
+  .clearspace::before {
+    content: ''; position: absolute; inset: 22%;
+    border: 1px dashed var(--border-strong); border-radius: 14px;
+  }
+  .clearspace .glyph { width: 86px; height: 86px; border-radius: 22px; display: grid; place-items: center; background: var(--grad); box-shadow: 0 16px 40px -14px var(--accent-strong); position: relative; z-index: 1; }
+
+  /* ---------- DO / DON'T ---------- */
+  .dont-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+  @media (max-width: 820px){ .dont-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 520px){ .dont-grid { grid-template-columns: 1fr; } }
+  .tile { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+  .tile-stage { height: 150px; display: grid; place-items: center; background: var(--inset); }
+  .tile-glyph { width: 64px; height: 64px; border-radius: 17px; display: grid; place-items: center; background: var(--grad); box-shadow: 0 12px 30px -12px var(--accent-strong); }
+  .tile-body { padding: 14px 16px; font-size: 13.5px; color: var(--text-soft); display: flex; align-items: center; gap: 9px; line-height: 1.45; }
+  .tag { font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 99px; flex-shrink: 0; }
+  .tag-ok { background: var(--good-soft); color: var(--good); }
+  .tag-no { background: var(--bad-soft); color: var(--bad); }
+
+  /* ---------- COLORS ---------- */
+  .colors-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 44px; }
+  @media (max-width: 900px){ .colors-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 520px){ .colors-grid { grid-template-columns: 1fr; } }
+  .color-tile { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+  .swatch { height: 96px; position: relative; }
+  .swatch::after {
+    content: attr(data-hex); position: absolute; bottom: 8px; right: 10px;
+    font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.82);
+    background: rgba(0,0,0,0.28); padding: 2px 7px; border-radius: 5px;
+  }
+  .swatch.light::after { color: rgba(0,0,0,0.6); background: rgba(255,255,255,0.45); }
+  .ctbody { padding: 13px 14px; }
+  .ctbody .name { font-size: 13.5px; font-weight: 700; }
+  .ctbody .role { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.45; }
+  .ctbody .token {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); margin-top: 9px; cursor: pointer;
+    transition: color .15s;
+  }
+  .ctbody .token:hover { color: var(--accent); }
+  .ctbody .token.copied { color: var(--good); }
+  .colors-sub { font-size: 13px; color: var(--text-muted); text-align: center; margin: 40px 0 14px; letter-spacing: 0.04em; }
+
+  /* ---------- TYPE ---------- */
+  .type-ladder { margin-top: 40px; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+  .type-row { display: grid; grid-template-columns: 92px 1fr auto; align-items: baseline; gap: 20px; padding: 18px 22px; border-bottom: 1px solid var(--border-faint); }
+  .type-row:last-child { border-bottom: none; }
+  .type-row .tg { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+  .type-row .sample { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .type-row .specs { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); white-space: nowrap; text-align: right; }
+  @media (max-width: 760px){ .type-row { grid-template-columns: 1fr; gap: 8px; } .type-row .specs { text-align: left; } }
+  .t-display { font-size: 42px; font-weight: 800; letter-spacing: -0.035em; }
+  .t-h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
+  .t-h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .t-h3 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .t-body { font-size: 15px; font-weight: 400; }
+  .t-bodyB { font-size: 15px; font-weight: 600; }
+  .t-caption { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+  .t-micro { font-size: 11px; font-weight: 500; color: var(--text-faint); letter-spacing: 0.04em; text-transform: uppercase; }
+  .t-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent); }
+
+  /* ---------- SCALE ---------- */
+  .scale { margin-top: 40px; display: flex; flex-direction: column; gap: 10px; }
+  .scale-row { display: grid; grid-template-columns: 96px 64px 1fr; align-items: center; gap: 16px; }
+  .scale-row .tok { font-family: var(--font-mono); font-size: 12px; color: var(--text-soft); }
+  .scale-row .val { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+  .bar { height: 14px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--grad); border-radius: 5px; }
+
+  .tile-row { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 40px; }
+  .swatch-tile { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .demo-box { width: 120px; height: 120px; background: var(--grad); }
+  .demo-flat { width: 120px; height: 120px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+  .lbl-name { font-size: 13px; font-weight: 600; }
+  .lbl-val { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); }
+
+  /* ---------- COMPONENTS ---------- */
+  .canvas { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); padding: 22px; margin-top: 20px; }
+  .canvas-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .canvas-head h4 { font-size: 14px; font-weight: 700; }
+  .canvas-head .mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); }
+  .cluster { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: var(--r-md); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); transition: .15s; font-family: inherit;
+  }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn.primary { background: var(--grad); color: var(--accent-ink); border: none; font-weight: 700; box-shadow: 0 8px 22px -8px var(--accent-strong); }
+  .btn.ghost { background: transparent; }
+  .btn.danger { color: var(--bad); border-color: var(--bad-soft); background: var(--bad-soft); }
+  .btn.pill { border-radius: var(--r-pill); }
+  .input {
+    width: 100%; background: var(--inset); border: 1px solid var(--border); border-radius: var(--r-sm);
+    color: var(--text); font-family: inherit; font-size: 13.5px; padding: 11px 13px;
+  }
+  .input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-softer); }
+  .input::placeholder { color: var(--text-faint); }
+  .input.focused { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-softer); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .badge.muted { background: var(--surface-3); color: var(--text-muted); }
+  .badge.accent { background: var(--accent-soft); color: var(--accent); }
+  .badge.good { background: var(--good-soft); color: var(--good); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.bad { background: var(--bad-soft); color: var(--bad); }
+  .mc { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; border: none; cursor: pointer; background: var(--surface-3); color: var(--text-soft); font-size: 15px; transition: .15s; }
+  .mc:hover { background: var(--accent); color: var(--accent-ink); }
+  .mc.grad { background: var(--grad); color: var(--accent-ink); box-shadow: 0 6px 16px -6px var(--accent-strong); }
+  /* slider demo */
+  .slider-demo { display: flex; align-items: center; gap: 14px; max-width: 360px; }
+  .slider-demo .track { flex: 1; height: 5px; border-radius: 99px; background: var(--surface-3); position: relative; }
+  .slider-demo .track > i { position: absolute; left: 0; top: 0; bottom: 0; width: 58%; border-radius: 99px; background: var(--grad); }
+  .slider-demo .track > b { position: absolute; left: 58%; top: 50%; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); transform: translate(-50%,-50%); }
+  .slider-demo .sv { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); width: 44px; }
+  /* toggle demo */
+  .toggle-demo { display: inline-flex; align-items: center; gap: 11px; font-size: 13px; color: var(--text-soft); }
+  .sw { width: 40px; height: 23px; border-radius: 99px; background: var(--accent); position: relative; }
+  .sw::after { content: ''; position: absolute; top: 2px; left: 19px; width: 17px; height: 17px; border-radius: 50%; background: #fff; }
+  .sw.off { background: var(--surface-3); border: 1px solid var(--border); }
+  .sw.off::after { left: 2px; background: var(--text-faint); }
+  /* waveform/player demo */
+  .player-demo { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--inset); border: 1px solid var(--border); border-radius: var(--r-lg); max-width: 460px; }
+  .player-demo .pp { width: 42px; height: 42px; border-radius: 50%; background: var(--grad); color: var(--accent-ink); display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 6px 16px -6px var(--accent-strong); }
+  .wave { flex: 1; display: flex; align-items: center; gap: 3px; height: 34px; }
+  .wave i { flex: 1; background: var(--accent-line); border-radius: 99px; }
+  .wave i.on { background: var(--accent); }
+  .player-demo .ptime { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- CODE ---------- */
+  .code { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--inset); margin-top: 20px; }
+  .code-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .code-head .lang { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+  .copy { font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-soft); cursor: pointer; transition: .15s; font-family: inherit; }
+  .copy:hover { border-color: var(--accent-line); color: var(--accent); }
+  .copy.copied { background: var(--good-soft); color: var(--good); border-color: transparent; }
+  pre { margin: 0; padding: 18px 20px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; color: var(--text-soft); }
+  .tk-key { color: var(--accent); } .tk-val { color: var(--good); } .tk-com { color: var(--text-faint); } .tk-pun { color: var(--text-muted); }
+
+  /* ---------- FOOT ---------- */
+  .foot { border-top: 1px solid var(--border); padding: 38px 28px; text-align: center; }
+  .foot p { font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+
+  .bg-soft { background: linear-gradient(180deg, var(--bg-grad-1), var(--bg)); }
+</style>
+</head>
+<body id="top">
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-mark">
+      <span class="nav-glyph">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg>
+      </span>
+      <span>Vonia<span class="dot">.</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#logo">Logo</a>
+      <a href="#colors">Màu sắc</a>
+      <a href="#type">Typography</a>
+      <a href="#layout">Layout</a>
+      <a href="#components">Components</a>
+      <a href="#code">Tokens</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-glyph">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg>
+  </div>
+  <h1>Vonia<span class="dot">.</span> Brand Guide</h1>
+  <p class="lead">Một hệ thống thiết kế. Cho mọi giọng nói. Trên mọi điểm chạm.</p>
+  <div class="cta-row">
+    <a href="#logo" class="cta">Khám phá</a>
+    <a href="#code" class="cta cta--filled">Lấy tokens</a>
+  </div>
+  <div class="hero-meta">
+    <span>Phiên bản · <strong>v1.0</strong></span>
+    <span>Cập nhật · <strong>08/06/2026</strong></span>
+    <span>Phạm vi · <strong>Web · Desktop · Mobile</strong></span>
+  </div>
+</header>
+
+<!-- PHILOSOPHY -->
+<section>
+  <div class="container center">
+    <p class="eyebrow">Triết lý</p>
+    <h2 class="display">Tối giản trong bóng tối.<br/><span class="grad-text">Giọng nói là nhân vật chính.</span></h2>
+    <p class="lead">Vonia là một studio. Giao diện lùi vào nền navy sâu để dạng sóng, dòng chữ và nút bấm cyan trở thành tâm điểm. Mỗi pixel phục vụ cho âm thanh được tạo ra.</p>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- LOGO -->
+<section id="logo" class="bg-soft">
+  <div class="container center">
+    <p class="eyebrow">Logo</p>
+    <h2 class="h1">Một dấu ấn. Mọi nền.</h2>
+    <p class="lead">Dạng sóng âm thanh sáu vạch dựng trên ô bo góc, tô bằng gradient cyan→blue đặc trưng. Chữ Vonia kèm dấu chấm cyan — điểm nhấn duy nhất.</p>
+  </div>
+  <div class="container">
+    <div class="logo-pair">
+      <div class="logo-stage logo-stage--dark">
+        <div class="logo-lockup logo-lockup--ondarkbg">
+          <span class="glyph"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
+          <div>
+            <div class="logo-word">Vonia<span class="dot">.</span></div>
+            <div class="logo-sub">Voice Studio</div>
+          </div>
+        </div>
+        <span class="tagstage">primary · trên nền navy</span>
+      </div>
+      <div class="logo-stage logo-stage--light">
+        <div class="logo-lockup logo-lockup--onlight">
+          <span class="glyph"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
+          <div>
+            <div class="logo-word">Vonia<span class="dot">.</span></div>
+            <div class="logo-sub">Voice Studio</div>
+          </div>
+        </div>
+        <span class="tagstage">light · trên nền giấy</span>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="logo-pair">
+      <div class="logo-stage logo-stage--grad" style="min-height:200px">
+        <div class="logo-lockup logo-lockup--ondark">
+          <span class="glyph" style="background:var(--inset);box-shadow:none"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
+          <div>
+            <div class="logo-word">Vonia<span class="dot">.</span></div>
+            <div class="logo-sub">Voice Studio</div>
+          </div>
+        </div>
+        <span class="tagstage">reverse · trên nền gradient</span>
+      </div>
+      <div class="logo-stage logo-stage--dark" style="min-height:200px">
+        <div class="logo-lockup logo-lockup--mono">
+          <span class="glyph"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#b9c4da" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
+          <div>
+            <div class="logo-word" style="color:var(--text-soft)">Vonia<span class="dot" style="color:var(--text-soft)">.</span></div>
+            <div class="logo-sub">Voice Studio</div>
+          </div>
+        </div>
+        <span class="tagstage">mono · 1 màu</span>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- CLEAR SPACE -->
+<section>
+  <div class="container">
+    <div class="feature">
+      <div class="body">
+        <p class="eyebrow">Clear space</p>
+        <h2 class="h2">Khoảng trống là một phần của logo.</h2>
+        <p>Vùng đệm tối thiểu quanh dấu ấn bằng <strong>x</strong> — chiều cao của ô glyph chia bốn. Không yếu tố nào được xâm phạm vùng này.</p>
+        <p class="caption">Kích thước tối thiểu của glyph: <strong>20px</strong> (favicon · sidebar), <strong>32px</strong> (nav), <strong>64px</strong> (hero). Bo góc glyph luôn giữ tỉ lệ ~0.28 × cạnh.</p>
+      </div>
+      <div>
+        <div class="clearspace">
+          <span class="glyph"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.1" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- DO / DON'T -->
+<section class="bg-soft">
+  <div class="container center">
+    <p class="eyebrow">Sử dụng</p>
+    <h2 class="h1">Giữ nguyên bản. Luôn luôn.</h2>
+    <p class="lead">Một glyph. Một gradient. Một dấu chấm cyan duy nhất.</p>
+  </div>
+  <div class="container">
+    <div class="dont-grid">
+      <div class="tile">
+        <div class="tile-stage"><span class="tile-glyph"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-ok">ĐÚNG</span> Glyph gradient, đủ clear space.</div>
+      </div>
+      <div class="tile">
+        <div class="tile-stage"><span class="tile-glyph" style="transform:rotate(16deg)"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-no">SAI</span> Đừng xoay nghiêng glyph.</div>
+      </div>
+      <div class="tile">
+        <div class="tile-stage"><span class="tile-glyph" style="width:110px;height:56px;border-radius:14px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-no">SAI</span> Đừng bóp méo tỉ lệ ô.</div>
+      </div>
+      <div class="tile">
+        <div class="tile-stage"><span class="tile-glyph" style="background:#f87171;box-shadow:none"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-no">SAI</span> Đừng đổi màu gradient.</div>
+      </div>
+      <div class="tile">
+        <div class="tile-stage" style="background:#f4f6fb"><span class="tile-glyph" style="background:#fff;box-shadow:none"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-no">SAI</span> Đừng để tương phản kém.</div>
+      </div>
+      <div class="tile">
+        <div class="tile-stage"><span class="tile-glyph" style="filter:drop-shadow(0 10px 8px rgba(0,0,0,0.6))"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#04141a" stroke-width="2.2" stroke-linecap="round"><path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span></div>
+        <div class="tile-body"><span class="tag tag-no">SAI</span> Đừng thêm bóng đổ thô.</div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- COLORS -->
+<section id="colors">
+  <div class="container center">
+    <p class="eyebrow">Màu sắc</p>
+    <h2 class="display">Navy giữ sân khấu.<br/><span class="grad-text">Cyan là ánh đèn.</span></h2>
+    <p class="lead">Navy sâu phủ hơn 80% diện tích. Cyan chỉ xuất hiện ở khoảnh khắc tương tác — như tín hiệu của một dạng sóng đang sống. Gradient cyan→blue dành riêng cho hành động chính.</p>
+  </div>
+  <div class="container">
+    <p class="colors-sub">Brand · Accent</p>
+    <div class="colors-grid">
+      <div class="color-tile"><div class="swatch" style="background:#22d3ee" data-hex="#22D3EE"></div><div class="ctbody"><div class="name">Cyan</div><div class="role">Accent chính · link · focus · active</div><div class="token" data-copy="#22d3ee">--accent · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#38e0d4" data-hex="#38E0D4"></div><div class="ctbody"><div class="name">Teal</div><div class="role">Accent phụ · highlight</div><div class="token" data-copy="#38e0d4">--accent-2 · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#06b6d4" data-hex="#06B6D4"></div><div class="ctbody"><div class="name">Cyan đậm</div><div class="role">Bóng đổ accent · hover</div><div class="token" data-copy="#06b6d4">--accent-strong · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:linear-gradient(100deg,#22d3ee,#3b82f6)" data-hex="CYAN→BLUE"></div><div class="ctbody"><div class="name">Gradient</div><div class="role">CTA · brand mark · player</div><div class="token" data-copy="linear-gradient(100deg, #22d3ee 0%, #3b82f6 100%)">--grad · copy</div></div></div>
+    </div>
+  </div>
+  <div class="container">
+    <p class="colors-sub">Surfaces · Navy</p>
+    <div class="colors-grid">
+      <div class="color-tile"><div class="swatch" style="background:#070b16" data-hex="#070B16"></div><div class="ctbody"><div class="name">Base</div><div class="role">Nền app sâu nhất</div><div class="token" data-copy="#070b16">--bg · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#0e1525" data-hex="#0E1525"></div><div class="ctbody"><div class="name">Surface</div><div class="role">Card · panel · sidebar</div><div class="token" data-copy="#0e1525">--surface · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#131c30" data-hex="#131C30"></div><div class="ctbody"><div class="name">Surface 2</div><div class="role">Hover · tab active</div><div class="token" data-copy="#131c30">--surface-2 · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#0a0f1d" data-hex="#0A0F1D"></div><div class="ctbody"><div class="name">Inset</div><div class="role">Input · textarea · code</div><div class="token" data-copy="#0a0f1d">--inset · copy</div></div></div>
+    </div>
+  </div>
+  <div class="container">
+    <p class="colors-sub">Text · Semantic</p>
+    <div class="colors-grid">
+      <div class="color-tile"><div class="swatch light" style="background:#eaf0fb" data-hex="#EAF0FB"></div><div class="ctbody"><div class="name">Text</div><div class="role">Chữ chính trên navy</div><div class="token" data-copy="#eaf0fb">--text · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#7e8aa6" data-hex="#7E8AA6"></div><div class="ctbody"><div class="name">Muted</div><div class="role">Mô tả · metadata</div><div class="token" data-copy="#7e8aa6">--text-muted · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#34d399" data-hex="#34D399"></div><div class="ctbody"><div class="name">Good</div><div class="role">Thành công · hoàn tất</div><div class="token" data-copy="#34d399">--good · copy</div></div></div>
+      <div class="color-tile"><div class="swatch" style="background:#fbbf24" data-hex="#FBBF24"></div><div class="ctbody"><div class="name">Warn</div><div class="role">Cảnh báo · chờ xử lý</div><div class="token" data-copy="#fbbf24">--warn · copy</div></div></div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- TYPOGRAPHY -->
+<section id="type" class="bg-soft">
+  <div class="container center">
+    <p class="eyebrow">Typography</p>
+    <h2 class="display">Be Vietnam Pro.<br/>Sắc nét. Đa ngôn ngữ.</h2>
+    <p class="lead">Một typeface dựng riêng cho tiếng Việt với dấu thanh chuẩn xác, mở rộng tới Latin mở rộng. JetBrains Mono cho mã, token và số liệu. Negative tracking ở mọi tiêu đề.</p>
+  </div>
+  <div class="container">
+    <div class="type-ladder">
+      <div class="type-row"><span class="tg">Display</span><span class="sample t-display">Mọi giọng nói.</span><span class="specs">BVP · 42 · 800 · -0.035em</span></div>
+      <div class="type-row"><span class="tg">H1</span><span class="sample t-h1">Nhân bản giọng nói</span><span class="specs">BVP · 32 · 800 · -0.03em</span></div>
+      <div class="type-row"><span class="tg">H2</span><span class="sample t-h2">Hội thoại đa người nói</span><span class="specs">BVP · 24 · 700 · -0.02em</span></div>
+      <div class="type-row"><span class="tg">H3</span><span class="sample t-h3">Thư viện 40+ giọng mẫu</span><span class="specs">BVP · 19 · 700 · -0.01em</span></div>
+      <div class="type-row"><span class="tg">Body</span><span class="sample t-body">Chuyển văn bản thành giọng nói tự nhiên trên 14 ngôn ngữ.</span><span class="specs">BVP · 15 · 400</span></div>
+      <div class="type-row"><span class="tg">Body đậm</span><span class="sample t-bodyB">Achernar · Nữ, dịu nhẹ, cao.</span><span class="specs">BVP · 15 · 600</span></div>
+      <div class="type-row"><span class="tg">Caption</span><span class="sample t-caption">Mô tả phụ, ghi chú metadata.</span><span class="specs">BVP · 13 · 400</span></div>
+      <div class="type-row"><span class="tg">Micro</span><span class="sample t-micro">Đang tạo · 0:14</span><span class="specs">BVP · 11 · 500 · 0.04em · caps</span></div>
+      <div class="type-row"><span class="tg">Mono</span><span class="sample t-mono">voiceId: "achernar_v2"</span><span class="specs">JetBrains Mono · 13 · 500</span></div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- SPACING + RADIUS + SHADOW -->
+<section id="layout">
+  <div class="container center">
+    <p class="eyebrow">Spacing</p>
+    <h2 class="h1">Một thang đo. Nhịp 4px.</h2>
+    <p class="lead">Dày ở size nhỏ để căn chỉnh chính xác typography và icon. Bước lớn để tạo khoảng thở giữa các vùng làm việc.</p>
+  </div>
+  <div class="container">
+    <div class="scale">
+      <div class="scale-row"><span class="tok">space-1</span><span class="val">4px</span><div class="bar"><i style="width:4%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-2</span><span class="val">6px</span><div class="bar"><i style="width:6%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-3</span><span class="val">8px</span><div class="bar"><i style="width:8%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-4</span><span class="val">10px</span><div class="bar"><i style="width:10%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-5</span><span class="val">14px</span><div class="bar"><i style="width:14%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-6</span><span class="val">18px</span><div class="bar"><i style="width:18%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-7</span><span class="val">22px</span><div class="bar"><i style="width:22%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-8</span><span class="val">26px</span><div class="bar"><i style="width:26%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-10</span><span class="val">36px</span><div class="bar"><i style="width:36%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-12</span><span class="val">48px</span><div class="bar"><i style="width:48%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-16</span><span class="val">64px</span><div class="bar"><i style="width:64%"></i></div></div>
+      <div class="scale-row"><span class="tok">space-24</span><span class="val">92px</span><div class="bar"><i style="width:92%"></i></div></div>
+    </div>
+  </div>
+
+  <div class="container center" style="margin-top:88px">
+    <p class="eyebrow">Radius</p>
+    <h2 class="h1">Sáu bậc. Mỗi bậc một vai trò.</h2>
+    <p class="lead">Mặc định <strong>11px</strong> cho nút và panel. Pill <strong>999px</strong> cho badge và segmented. Circle <strong>50%</strong> cho avatar và media control.</p>
+  </div>
+  <div class="container">
+    <div class="tile-row" style="justify-content:center">
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:6px"></div><span class="lbl-name">xs</span><span class="lbl-val">6px</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:8px"></div><span class="lbl-name">sm</span><span class="lbl-val">8px</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px"></div><span class="lbl-name">md</span><span class="lbl-val">11px</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:16px"></div><span class="lbl-name">lg</span><span class="lbl-val">16px</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:22px"></div><span class="lbl-name">xl</span><span class="lbl-val">22px</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:999px;width:140px"></div><span class="lbl-name">pill</span><span class="lbl-val">999px</span></div>
+    </div>
+  </div>
+
+  <div class="container center" style="margin-top:88px">
+    <p class="eyebrow">Depth</p>
+    <h2 class="h1">Bóng đen mềm. Viền sáng mảnh.</h2>
+    <p class="lead">Độ sâu đến từ bóng đen khuếch tán trên nền tối, kết hợp viền sáng <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--accent)">rgba(148,173,214,…)</code> — không bao giờ dùng bóng đen thô.</p>
+  </div>
+  <div class="container">
+    <div class="tile-row" style="justify-content:center">
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px"></div><span class="lbl-name">Flat</span><span class="lbl-val">border only</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px;box-shadow:0 8px 24px -8px rgba(0,0,0,0.55)"></div><span class="lbl-name">Shadow</span><span class="lbl-val">0 8 24 ·.55</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px;box-shadow:0 24px 60px -16px rgba(0,0,0,0.7)"></div><span class="lbl-name">Lg</span><span class="lbl-val">0 24 60 ·.7</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px;box-shadow:0 8px 22px -8px var(--accent-strong);border-color:transparent;background:var(--accent-soft)"></div><span class="lbl-name">Accent glow</span><span class="lbl-val">cyan-strong</span></div>
+      <div class="swatch-tile"><div class="demo-flat" style="border-radius:11px;box-shadow:0 0 0 3px var(--accent-softer);border-color:var(--accent-line)"></div><span class="lbl-name">Focus</span><span class="lbl-val">3px ring</span></div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- COMPONENTS -->
+<section id="components" class="bg-soft">
+  <div class="container center">
+    <p class="eyebrow">Components</p>
+    <h2 class="display">Bộ điều khiển của studio.</h2>
+    <p class="lead">Nút gradient, input lõm, slider cyan, dạng sóng sống. Mọi thành phần tuân theo cùng một ngôn ngữ: navy nền, cyan hành động.</p>
+  </div>
+  <div class="container">
+    <div class="canvas">
+      <div class="canvas-head"><h4>Buttons</h4><span class="mono">11px radius · gradient primary · accent-ink</span></div>
+      <div class="cluster" style="margin-bottom:14px">
+        <button class="btn primary">Tạo giọng nói</button>
+        <button class="btn">Nghe thử</button>
+        <button class="btn ghost">Huỷ</button>
+        <button class="btn danger">Xoá</button>
+      </div>
+      <div class="cluster">
+        <button class="btn primary pill">Nâng cấp Pro</button>
+        <button class="btn pill">Tài liệu API</button>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="canvas-head"><h4>Inputs &amp; Search</h4><span class="mono">inset bg · focus accent-line + 3px ring</span></div>
+      <div style="display:flex;flex-direction:column;gap:14px;max-width:440px">
+        <input class="input" type="text" placeholder="Tìm giọng nói, ngôn ngữ…" />
+        <input class="input focused" type="text" value="Achernar — Nữ, dịu nhẹ" />
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="canvas-head"><h4>Sliders &amp; Toggles</h4><span class="mono">gradient fill · white knob · 3px accent border</span></div>
+      <div style="display:flex;flex-direction:column;gap:20px;max-width:440px">
+        <div class="slider-demo"><span class="mono" style="font-size:12px;color:var(--text-soft);width:80px">Tốc độ</span><div class="track"><i></i><b></b></div><span class="sv">1.15×</span></div>
+        <div class="cluster" style="gap:24px">
+          <span class="toggle-demo"><span class="sw"></span> Chuẩn hoá</span>
+          <span class="toggle-demo"><span class="sw off"></span> Lặp vô hạn</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="canvas-head"><h4>Badges &amp; Status</h4><span class="mono">999px pill · semantic tints</span></div>
+      <div class="cluster">
+        <span class="badge accent">Pro</span>
+        <span class="badge good">Hoàn tất</span>
+        <span class="badge warn">Đang xử lý</span>
+        <span class="badge bad">Lỗi</span>
+        <span class="badge muted">Bản nháp</span>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="canvas-head"><h4>Media &amp; Player</h4><span class="mono">50% radius · gradient play · live waveform</span></div>
+      <div class="cluster" style="gap:14px;margin-bottom:18px">
+        <button class="mc grad">▶</button>
+        <button class="mc">‹</button>
+        <button class="mc">›</button>
+        <button class="mc">❚❚</button>
+      </div>
+      <div class="player-demo">
+        <span class="pp">▶</span>
+        <div class="wave">
+          <i style="height:30%"></i><i class="on" style="height:60%"></i><i class="on" style="height:90%"></i><i class="on" style="height:45%"></i><i class="on" style="height:70%"></i><i style="height:40%"></i><i style="height:85%"></i><i style="height:55%"></i><i style="height:30%"></i><i style="height:65%"></i><i style="height:48%"></i><i style="height:78%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:25%"></i><i style="height:50%"></i>
+        </div>
+        <span class="ptime">0:14 / 0:42</span>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="divider-line"></div>
+
+<!-- CODE TOKENS -->
+<section id="code">
+  <div class="container center">
+    <p class="eyebrow">Code tokens</p>
+    <h2 class="display">Sao chép. Dán. Xong.</h2>
+    <p class="lead">CSS variables hoặc Tailwind config — đồng bộ tuyệt đối với <code style="font-family:var(--font-mono);font-size:0.85em;color:var(--accent)">tokens.css</code> đang chạy trong Vonia Voice Studio.</p>
+  </div>
+  <div class="container">
+    <div class="code">
+      <div class="code-head"><span class="lang">css · tokens.css</span><button class="copy" data-copy-code="c1">Copy</button></div>
+<pre id="c1"><span class="tk-pun">:root {</span>
+  <span class="tk-com">/* Brand · accent */</span>
+  <span class="tk-key">--accent</span>:        <span class="tk-val">#22d3ee</span>;
+  <span class="tk-key">--accent-2</span>:      <span class="tk-val">#38e0d4</span>;
+  <span class="tk-key">--accent-strong</span>: <span class="tk-val">#06b6d4</span>;
+  <span class="tk-key">--grad</span>: <span class="tk-val">linear-gradient(100deg, #22d3ee 0%, #3b82f6 100%)</span>;
+  <span class="tk-key">--accent-ink</span>:    <span class="tk-val">#04141a</span>;
+
+  <span class="tk-com">/* Surfaces · navy */</span>
+  <span class="tk-key">--bg</span>:        <span class="tk-val">#070b16</span>;
+  <span class="tk-key">--surface</span>:   <span class="tk-val">#0e1525</span>;
+  <span class="tk-key">--surface-2</span>: <span class="tk-val">#131c30</span>;
+  <span class="tk-key">--inset</span>:     <span class="tk-val">#0a0f1d</span>;
+
+  <span class="tk-com">/* Text */</span>
+  <span class="tk-key">--text</span>:       <span class="tk-val">#eaf0fb</span>;
+  <span class="tk-key">--text-muted</span>: <span class="tk-val">#7e8aa6</span>;
+
+  <span class="tk-com">/* Semantic */</span>
+  <span class="tk-key">--good</span>: <span class="tk-val">#34d399</span>; <span class="tk-key">--warn</span>: <span class="tk-val">#fbbf24</span>; <span class="tk-key">--bad</span>: <span class="tk-val">#f87171</span>;
+
+  <span class="tk-com">/* Radius */</span>
+  <span class="tk-key">--r-sm</span>: <span class="tk-val">8px</span>; <span class="tk-key">--r-md</span>: <span class="tk-val">11px</span>; <span class="tk-key">--r-lg</span>: <span class="tk-val">16px</span>; <span class="tk-key">--r-pill</span>: <span class="tk-val">999px</span>;
+
+  <span class="tk-com">/* Type */</span>
+  <span class="tk-key">--font-sans</span>: <span class="tk-val">'Be Vietnam Pro', system-ui, sans-serif</span>;
+  <span class="tk-key">--font-mono</span>: <span class="tk-val">'JetBrains Mono', ui-monospace, monospace</span>;
+<span class="tk-pun">}</span></pre>
+    </div>
+
+    <div class="code">
+      <div class="code-head"><span class="lang">js · tailwind.config.js</span><button class="copy" data-copy-code="c2">Copy</button></div>
+<pre id="c2"><span class="tk-key">module.exports</span> <span class="tk-pun">= {</span>
+  <span class="tk-key">theme</span><span class="tk-pun">: { </span><span class="tk-key">extend</span><span class="tk-pun">: {</span>
+    <span class="tk-key">colors</span><span class="tk-pun">: {</span>
+      <span class="tk-key">accent</span><span class="tk-pun">:  { </span><span class="tk-key">DEFAULT</span><span class="tk-pun">:</span> <span class="tk-val">'#22d3ee'</span><span class="tk-pun">,</span> <span class="tk-key">strong</span><span class="tk-pun">:</span> <span class="tk-val">'#06b6d4'</span><span class="tk-pun">,</span> <span class="tk-key">ink</span><span class="tk-pun">:</span> <span class="tk-val">'#04141a'</span> <span class="tk-pun">},</span>
+      <span class="tk-key">navy</span><span class="tk-pun">:    { </span><span class="tk-key">base</span><span class="tk-pun">:</span> <span class="tk-val">'#070b16'</span><span class="tk-pun">,</span> <span class="tk-key">surface</span><span class="tk-pun">:</span> <span class="tk-val">'#0e1525'</span><span class="tk-pun">,</span> <span class="tk-key">inset</span><span class="tk-pun">:</span> <span class="tk-val">'#0a0f1d'</span> <span class="tk-pun">},</span>
+    <span class="tk-pun">},</span>
+    <span class="tk-key">borderRadius</span><span class="tk-pun">: { </span><span class="tk-key">sm</span><span class="tk-pun">:</span> <span class="tk-val">'8px'</span><span class="tk-pun">,</span> <span class="tk-key">md</span><span class="tk-pun">:</span> <span class="tk-val">'11px'</span><span class="tk-pun">,</span> <span class="tk-key">lg</span><span class="tk-pun">:</span> <span class="tk-val">'16px'</span> <span class="tk-pun">},</span>
+    <span class="tk-key">fontFamily</span><span class="tk-pun">: {</span>
+      <span class="tk-key">sans</span><span class="tk-pun">: [</span><span class="tk-val">'Be Vietnam Pro'</span><span class="tk-pun">,</span> <span class="tk-val">'sans-serif'</span><span class="tk-pun">],</span>
+      <span class="tk-key">mono</span><span class="tk-pun">: [</span><span class="tk-val">'JetBrains Mono'</span><span class="tk-pun">,</span> <span class="tk-val">'monospace'</span><span class="tk-pun">],</span>
+    <span class="tk-pun">},</span>
+  <span class="tk-pun">} }</span>
+<span class="tk-pun">};</span></pre>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>Vonia Brand Guide · v1.0 · 08/06/2026 · Voice Studio Design System</p>
+</footer>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(el.getAttribute('data-copy'));
+        const orig = el.textContent;
+        el.textContent = '✓ Đã copy';
+        el.classList.add('copied');
+        setTimeout(() => { el.textContent = orig; el.classList.remove('copied'); }, 1100);
+      } catch (e) {}
+    });
+  });
+  document.querySelectorAll('.copy').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const pre = document.getElementById(btn.getAttribute('data-copy-code'));
+      if (!pre) return;
+      try {
+        await navigator.clipboard.writeText(pre.innerText);
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1100);
+      } catch (e) {}
+    });
+  });
+</script>
+</body>
+</html>

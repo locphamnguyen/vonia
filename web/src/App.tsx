@@ -25,7 +25,7 @@ function useIsMobile() {
   return m
 }
 
-function Sidebar({ lang, nav, setNav, onSettings, sub }: any) {
+function Sidebar({ lang, nav, setNav, onSettings, sub, userEmail }: any) {
   const active = !!sub?.active
   return (
     <aside className="sidebar">
@@ -50,6 +50,14 @@ function Sidebar({ lang, nav, setNav, onSettings, sub }: any) {
         <button className="plan-btn" onClick={onSettings} title={t(lang, 'nav_settings')}>
           <Icon name="bolt" size={14} />{active ? t(lang, 'plan_studio') : t(lang, 'plan_trial')}
         </button>
+        {userEmail && (
+          <div className="user-row">
+            <span className="user-email" title={userEmail}>{userEmail}</span>
+            <a className="logout-btn" href="/logout" title="Đăng xuất">
+              <Icon name="login" size={14} />
+            </a>
+          </div>
+        )}
         <div className="social-row">
           <button className="social-btn" title="Discord" aria-label="Discord"><Icon name="discord" size={17} /></button>
           <button className="social-btn" title="YouTube" aria-label="YouTube"><Icon name="youtube" size={17} /></button>
@@ -173,6 +181,8 @@ export default function App() {
   const [sub, setSub] = useState<api.Subscription | null>(null)
   const refreshSub = useCallback(() => { api.getSubscription().then(setSub).catch(() => {}) }, [])
   useEffect(() => { refreshSub() }, [refreshSub])
+  const [me, setMe] = useState<api.MeInfo | null>(null)
+  useEffect(() => { api.getMe().then(setMe).catch(() => {}) }, [])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('vonia.theme', theme) }, [theme])
   useEffect(() => { document.documentElement.lang = lang; localStorage.setItem('vonia.lang', lang) }, [lang])
@@ -193,7 +203,7 @@ export default function App() {
             <MobileApp lang={lang} setLang={setLang} />
           ) : (
           <div className="app">
-            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} sub={sub} />
+            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} sub={sub} userEmail={me?.email} />
             <div className="main">
               <ConnectionBanner lang={lang} />
               {nav === 'studio' ? (

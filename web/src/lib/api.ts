@@ -37,12 +37,24 @@ export function mapParams(s: GenSettings) {
 }
 
 async function asError(res: Response): Promise<never> {
+  if (res.status === 401) {
+    window.location.href = '/auth/login'
+    return new Promise(() => {}) as never
+  }
   let msg = `HTTP ${res.status}`
   try {
     const j = await res.json()
     msg = j?.error?.message || j?.detail || msg
   } catch { /* ignore */ }
   throw new Error(msg)
+}
+
+export interface MeInfo { email: string; sub: string }
+
+export async function getMe(): Promise<MeInfo> {
+  const res = await fetch(`${API_BASE}/auth/me`)
+  if (!res.ok) await asError(res)
+  return res.json()
 }
 
 export async function health(): Promise<any> {

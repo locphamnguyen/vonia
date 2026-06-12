@@ -507,6 +507,100 @@ button { font-family: inherit; }
 @keyframes indet { 0%{margin-left:-35%} 100%{margin-left:100%} }
 
 /* ============================================================
+   TTS TAB — selected voice chip + line stats
+   ============================================================ */
+.tts-voice-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--accent-soft);
+  border: 1px solid var(--accent-line); border-radius: var(--r-lg);
+  transition: box-shadow .18s;
+}
+.tts-voice-chip:hover { box-shadow: 0 0 0 2px var(--accent-line); }
+.tts-voice-chip .av {
+  width: 32px; height: 32px; border-radius: 50%; display: grid;
+  place-items: center; font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+}
+.tvc-meta { flex: 1; min-width: 0; }
+.tvc-name { font-size: 13px; font-weight: 700; display: block; }
+.tvc-desc { font-size: 11.5px; color: var(--text-muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tts-random-chip {
+  display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.tts-random-chip .rc-pill {
+  display: flex; align-items: center; gap: 4px; padding: 3px 9px;
+  background: var(--surface-3); border-radius: 99px;
+  font-size: 11.5px; color: var(--text-soft); font-weight: 500;
+}
+.tts-random-chip .rc-pill b { color: var(--accent); font-weight: 700; }
+.tts-linestat { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.tts-linestat b { color: var(--text-muted); font-weight: 600; }
+
+/* ============================================================
+   CLONE TAB — step bar + dropzone
+   ============================================================ */
+.clone-steps {
+  display: flex; align-items: center; padding: 12px 18px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 0;
+}
+.clone-step { display: flex; align-items: center; gap: 6px; }
+.clone-step .csn {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border-strong); background: var(--surface-2);
+  color: var(--text-faint); display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; transition: .2s;
+}
+.clone-step.done .csn { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.clone-step .csl { font-size: 11.5px; font-weight: 600; color: var(--text-faint); white-space: nowrap; transition: .2s; }
+.clone-step.done .csl { color: var(--text-soft); }
+.clone-step-line { flex: 1; height: 1.5px; background: var(--border); margin: 0 8px; min-width: 14px; transition: background .2s; }
+.clone-step-line.done { background: var(--accent-line); }
+
+/* Audio dropzone */
+.clone-dz {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 20px 14px; border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r-lg); background: var(--inset); cursor: pointer;
+  text-align: center; transition: border-color .18s, background .18s, box-shadow .18s;
+}
+.clone-dz:hover, .clone-dz--drag {
+  border-color: var(--accent); background: var(--accent-soft);
+}
+.clone-dz--drag { box-shadow: 0 0 0 4px rgba(34,211,238,0.09); }
+.cdz-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  display: grid; place-items: center; color: var(--text-muted); transition: .18s;
+}
+.clone-dz:hover .cdz-icon, .clone-dz--drag .cdz-icon {
+  background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent);
+}
+.cdz-title { font-size: 13px; font-weight: 600; color: var(--text-soft); }
+.cdz-sub { font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+.cdz-btn { margin-top: 4px; pointer-events: all; }
+
+/* Loaded state */
+.clone-dz--loaded {
+  padding: 10px 12px; border-style: solid; border-color: var(--border);
+  cursor: default; gap: 8px;
+}
+.clone-dz--loaded:hover { border-color: var(--border); background: var(--inset); box-shadow: none; }
+.cdz-wave { width: 100%; height: 34px; display: flex; align-items: center; gap: 2px; }
+.cdz-wave i { flex: 1; background: var(--accent); border-radius: 99px; opacity: 0.55; }
+.cdz-info { display: flex; align-items: center; gap: 6px; width: 100%; }
+.cdz-fname {
+  flex: 1; font-size: 12px; font-family: var(--font-mono);
+  color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cdz-change {
+  width: 20px; height: 20px; border-radius: 6px; background: var(--surface-3);
+  border: none; cursor: pointer; display: grid; place-items: center;
+  color: var(--text-faint); flex-shrink: 0; transition: .15s;
+}
+.cdz-change:hover { background: var(--bad-soft); color: var(--bad); }
+
+/* ============================================================
    VOICE LIBRARY
    ============================================================ */
 .vlib { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
@@ -648,4 +742,328 @@ button { font-family: inherit; }
   .workspace { grid-template-columns: 300px 1fr; }
   .vlib-cols { grid-template-columns: 1fr; }
   .vlib-col + .vlib-col { border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* ============================================================
+   CUSTOMER PORTAL  (zalocrm.org/portal/license)
+   ============================================================ */
+
+/* ── Page shell ─────────────────────────────────────────────── */
+.portal-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1100px 500px at 70% -5%, rgba(34,211,238,0.05), transparent 60%),
+    var(--bg);
+  overflow-y: auto;
+}
+
+/* ── Top nav ────────────────────────────────────────────────── */
+.portal-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,11,22,0.82);
+  backdrop-filter: blur(12px);
+}
+[data-theme="light"] .portal-nav {
+  background: rgba(238,241,247,0.88);
+}
+.portal-nav-inner {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+/* Demo state switcher — shown in prototype only */
+.portal-demo-seg button { font-size: 11px; padding: 5px 9px; }
+.portal-demo-seg { opacity: 0.7; }
+.portal-demo-seg:hover { opacity: 1; }
+
+/* ── User button ────────────────────────────────────────────── */
+.portal-user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 6px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: .15s;
+}
+.portal-user-btn:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.portal-user-av {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--grad);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.portal-user-email {
+  font-size: 12.5px;
+  color: var(--text-soft);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .portal-user-email { display: none; }
+}
+
+/* ── Page layout ────────────────────────────────────────────── */
+.portal-main { flex: 1; padding: 36px 24px 64px; }
+.portal-content { max-width: 720px; margin: 0 auto; }
+
+/* ── Breadcrumb ─────────────────────────────────────────────── */
+.portal-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-bottom: 20px;
+}
+.portal-bc-link { color: var(--accent); cursor: pointer; }
+.portal-bc-link:hover { text-decoration: underline; }
+
+/* ── Page title ─────────────────────────────────────────────── */
+.portal-page-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 22px;
+}
+
+/* ── License card ───────────────────────────────────────────── */
+.portal-lcard {
+  padding: 20px 22px;
+}
+.portal-lcard--warn {
+  border-color: rgba(251,191,36,0.3);
+  box-shadow: 0 0 0 1px rgba(251,191,36,0.12);
+}
+.portal-lcard--expired {
+  border-color: rgba(248,113,113,0.3);
+  box-shadow: 0 0 0 1px rgba(248,113,113,0.1);
+}
+
+.portal-lcard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.portal-lcard-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.portal-plan-pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.portal-lcard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.portal-lcard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.portal-lcard-label {
+  width: 130px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.portal-status-badge { gap: 5px; font-size: 12px; padding: 4px 10px; }
+
+/* ── Renewal CTA ────────────────────────────────────────────── */
+.portal-lcard-cta { }
+
+.portal-renew-btn {
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+.portal-renew-btn--warn {
+  box-shadow: 0 8px 28px -8px var(--warn), 0 8px 22px -8px var(--accent-strong);
+}
+.portal-vnpay-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.2);
+  color: var(--accent-ink);
+  margin-left: auto;
+}
+
+.portal-expired-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.55;
+  text-align: left;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.portal-expired-note svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Payment method badge ───────────────────────────────────── */
+.portal-method-badge { gap: 4px; }
+
+/* ── Footer note ────────────────────────────────────────────── */
+.portal-footer-note {
+  margin-top: 40px;
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   LICENSE GATE
+   Hard gate modal — not dismissible by click-outside or Escape.
+   ============================================================ */
+
+/* Scrim: pointer-events on but cursor:default → nothing to click outside */
+.lgate-scrim { cursor: default; }
+
+.lgate {
+  width: min(420px, 94vw);
+  border-radius: var(--r-xl);
+  /* Override generic .modal padding — body handles its own spacing */
+}
+
+/* ── Hero ───────────────────────────────────────────── */
+.lgate-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 28px 0;
+}
+
+.lgate-expiry-badge {
+  /* Extends .badge.bad — tighten tracking for the "HẾT HẠN" pill */
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  gap: 6px;
+}
+
+/* ── Body ───────────────────────────────────────────── */
+.lgate-body {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 28px 28px;
+}
+
+.lgate-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.lgate-sub {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.lgate-plan {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Feature preservation list ─────────────────────── */
+.lgate-features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.lgate-feat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-soft);
+}
+
+.lgate-feat-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.lgate-feat-ico--good   { background: var(--good-soft);   color: var(--good);   }
+.lgate-feat-ico--accent { background: var(--accent-soft); color: var(--accent); }
+
+/* ── Price hint ─────────────────────────────────────── */
+.lgate-price-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.lgate-price-hint strong {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+/* ── Action buttons ─────────────────────────────────── */
+.lgate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }

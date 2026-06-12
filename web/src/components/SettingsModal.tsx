@@ -9,7 +9,7 @@ const fmtDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '—')
 
 function LicenseTab({ lang }: { lang: Lang }) {
   const toast = useToast()
-  const [signedIn, setSignedIn] = useState(false)
+  const [me, setMe] = useState<api.MeInfo | null>(null)
   const [cfg, setCfg] = useState<api.PaymentConfig | null>(null)
   const [sub, setSub] = useState<api.Subscription | null>(null)
   const [plans, setPlans] = useState<api.Plan[]>([])
@@ -17,6 +17,7 @@ function LicenseTab({ lang }: { lang: Lang }) {
 
   const loadSub = () => api.getSubscription().then(setSub).catch(() => {})
   useEffect(() => {
+    api.getMe().then(setMe).catch(() => {})
     api.getPaymentConfig().then(setCfg).catch(() => {})
     api.getPlans().then(setPlans).catch(() => {})
     loadSub()
@@ -29,21 +30,21 @@ function LicenseTab({ lang }: { lang: Lang }) {
     <div className="stack gap18">
       <div className="row between wrap gap10">
         <div className="row gap10 wrap">
-          {signedIn ? (
+          {me ? (
             <>
-              <span className="badge muted" style={{ padding: '8px 12px' }}><Icon name="user" size={15} />{t(lang, 'user')}: <strong>locphamnguyen@gmail.com</strong></span>
-              <span className="badge accent" style={{ padding: '8px 12px' }}>ID: 494130</span>
+              <span className="badge muted" style={{ padding: '8px 12px' }}><Icon name="user" size={15} />{t(lang, 'user')}: <strong>{me.email}</strong></span>
+              {me.sub && <span className="badge accent" style={{ padding: '8px 12px' }}>ID: {me.sub}</span>}
             </>
           ) : <span className="badge muted" style={{ padding: '8px 12px' }}><Icon name="user" size={15} />{t(lang, 'user')}: <strong>{t(lang, 'guest')}</strong></span>}
           {cfg?.env === 'sandbox' && <span className="badge warn" style={{ padding: '8px 12px' }}><Icon name="warn" size={13} />{t(lang, 'sandbox_badge')}</span>}
         </div>
         <div className="row gap10">
-          {signedIn ? (
+          {me ? (
             <>
               <Btn variant="subtle" icon="refresh" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}>{t(lang, 'refresh')}</Btn>
-              <Btn variant="danger" icon="x" onClick={() => { setSignedIn(false); toast({ kind: 'info', title: t(lang, 'signed_out_toast') }) }}>{t(lang, 'logout_device')}</Btn>
+              <Btn variant="danger" icon="login" onClick={() => { window.location.href = '/logout' }}>{t(lang, 'logout_device')}</Btn>
             </>
-          ) : <Btn variant="danger" icon="login" onClick={() => { setSignedIn(true); toast({ kind: 'good', title: t(lang, 'signed_in_toast') }) }}>{t(lang, 'sign_in_google')}</Btn>}
+          ) : <Btn variant="danger" icon="login" onClick={() => { window.location.href = '/auth/login' }}>{t(lang, 'sign_in_google')}</Btn>}
         </div>
       </div>
 

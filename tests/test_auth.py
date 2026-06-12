@@ -10,6 +10,9 @@ Covers 20 code paths:
  16-17: exchange_code — success, HTTP error
  18-19: get_user_info — success, HTTP error
  20   : verify_state_cookie rejects cookie signed with different secret
+ 21-22: build_auth_redirect — org scope present when ZITADEL_ORG_ID set / absent
+ 23-24: branded auth pages — landing CTA, error page actions
+ 25-27: auth gate (middleware) — landing for unauth HTML, 401 for API, authed passthrough
 """
 from __future__ import annotations
 
@@ -18,8 +21,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import httpx
+from fastapi.testclient import TestClient
 
 from omnivoice.server.auth import OIDCAuth
+from omnivoice.server.app import create_app, _landing_page, _login_error_page
 
 
 # ── Fixture helpers ───────────────────────────────────────────────────────────
@@ -33,6 +38,12 @@ def make_auth(**env) -> OIDCAuth:
     auth.redirect_uri = "https://app.example.com/auth/callback"
     raw_emails = env.get("allowed_emails", "")
     auth.allowed_emails = {e.strip().lower() for e in raw_emails.split(",") if e.strip()}
+    raw_blocked = env.get("blocked_domains", "")
+    auth.blocked_domains = {d.strip().lower() for d in raw_blocked.split(",") if d.strip()}
+    if auth.domain:
+        auth.blocked_domains.add(auth.domain)
+        auth.blocked_domains.add(f"zitadel.{auth.domain}")
+    auth.org_id = env.get("org_id", "")
     secret = env.get("session_secret", "test-session-secret-32-chars-long!")
     auth._secret = secret.encode()
     auth.enabled = bool(auth.domain and auth.client_id)
@@ -138,7 +149,7 @@ async def test_session_create_and_get():
     redis = make_redis()
     session_id = await auth.create_session(redis, "user@example.com", "sub-123")
     session = await auth.get_session(redis, session_id)
-    assert session == {"email": "user@example.com", "sub": "sub-123"}
+    assert session == {"email": "user@example.com", "sub": "sub-123", "id_token": ""}
 
 
 @pytest.mark.asyncio
@@ -269,3 +280,84 @@ def test_verify_state_cookie_wrong_secret():
     state = "nonce"
     cookie_from_a = auth_a._sign(json.dumps({"state": state, "cv": "verifier"}))
     assert auth_b.verify_state_cookie(cookie_from_a, state) is None
+
+
+# ── 21-22: build_auth_redirect org scope (Tier 1, option 1A) ──────────────────
+
+def test_build_auth_redirect_includes_org_scope():
+    """21: With org_id set, authorize URL carries the org urn (url-encoded)."""
+    auth = make_auth(org_id="376800000000000000")
+    url, _ = auth.build_auth_redirect()
+    # scope "...email urn:zitadel:iam:org:id:<id>" → ':' encodes to %3A
+    assert "urn%3Azitadel%3Aiam%3Aorg%3Aid%3A376800000000000000" in url
+
+
+def test_build_auth_redirect_omits_org_scope_when_unset():
+    """22: No org_id → no org urn (back-compat with instance-default login)."""
+    auth = make_auth(org_id="")
+    url, _ = auth.build_auth_redirect()
+    assert "org%3Aid" not in url
+
+
+# ── 23-24: branded auth pages (pure HTML) ─────────────────────────────────────
+
+def test_landing_page_has_google_login_cta():
+    """23: Landing page links to /auth/login with a Google CTA + Vonia brand."""
+    html = _landing_page()
+    assert 'href="/auth/login"' in html
+    assert "Tiếp tục với Google" in html
+    assert "Vonia" in html
+
+
+def test_login_error_page_has_retry_and_logout():
+    """24: Error page still offers retry (/auth/login) and logout."""
+    html = _login_error_page()
+    assert 'href="/auth/login"' in html
+    assert 'href="/logout"' in html
+
+
+# ── 25-27: auth gate middleware — landing vs 401 vs passthrough ────────────────
+
+def _make_gated_app(monkeypatch):
+    """Build the app with OIDC enabled and a fake Redis (no lifespan)."""
+    monkeypatch.setenv("ZITADEL_DOMAIN", "auth.example.com")
+    monkeypatch.setenv("ZITADEL_CLIENT_ID", "cid")
+    monkeypatch.setenv("VONIA_PUBLIC_URL", "https://app.example.com")
+    monkeypatch.setenv("VONIA_ALLOWED_EMAILS", "")  # open mode
+    app = create_app(MagicMock(), web_dir=None)
+    # Lifespan doesn't run without `with TestClient(...)`, so wire Redis by hand.
+    app.state.redis = make_redis()
+    return app
+
+
+def test_gate_serves_landing_for_unauth_html(monkeypatch):
+    """25: Unauthenticated HTML request gets the branded landing (200), not a 303."""
+    app = _make_gated_app(monkeypatch)
+    client = TestClient(app)
+    resp = client.get("/studio", headers={"accept": "text/html"})
+    assert resp.status_code == 200
+    assert "Tiếp tục với Google" in resp.text
+
+
+def test_gate_401_for_unauth_api(monkeypatch):
+    """26 (regression): Unauthenticated non-HTML request still gets 401 JSON."""
+    app = _make_gated_app(monkeypatch)
+    client = TestClient(app)
+    resp = client.get("/v1/voices", headers={"accept": "application/json"})
+    assert resp.status_code == 401
+
+
+def test_gate_passthrough_for_authed(monkeypatch):
+    """27 (regression): Authenticated request passes the gate (no landing, no 401)."""
+    app = _make_gated_app(monkeypatch)
+    app.state.redis = make_redis(**{
+        "vonia:session:sess-abc": json.dumps(
+            {"email": "u@gmail.com", "sub": "s1", "id_token": ""}
+        )
+    })
+    client = TestClient(app)
+    client.cookies.set("vonia_session", "sess-abc")
+    resp = client.get("/no-such-gated-path", headers={"accept": "text/html"})
+    # Gate let it through; the route simply doesn't exist → 404, not landing/401.
+    assert resp.status_code == 404
+    assert "Tiếp tục với Google" not in resp.text

@@ -48,6 +48,11 @@ class OIDCAuth:
         self.domain = (os.environ.get("ZITADEL_DOMAIN") or "").strip().rstrip("/")
         self.client_id = (os.environ.get("ZITADEL_CLIENT_ID") or "").strip()
         self.client_secret = (os.environ.get("ZITADEL_CLIENT_SECRET") or "").strip()
+        # Org Vonia: gắn org scope vào authorize request để login resolve theo
+        # login policy của org Vonia (tắt mật khẩu + auto-redirect Google) thay vì
+        # instance-default — nhờ vậy admin Zitadel vẫn đăng nhập console bằng mật
+        # khẩu, không bị khoá. Lấy ID ở Console → Organizations → Vonia.
+        self.org_id = (os.environ.get("ZITADEL_ORG_ID") or "").strip()
         public_url = (os.environ.get("VONIA_PUBLIC_URL") or "").rstrip("/")
         self.redirect_uri = f"{public_url}/auth/callback"
         raw = os.environ.get("VONIA_ALLOWED_EMAILS") or ""
@@ -124,11 +129,15 @@ class OIDCAuth:
             .rstrip(b"=")
             .decode()
         )
+        scope = "openid profile email"
+        if self.org_id:
+            # urn:zitadel:iam:org:id:{id} buộc login chạy theo org Vonia.
+            scope += f" urn:zitadel:iam:org:id:{self.org_id}"
         params = {
             "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
-            "scope": "openid profile email",
+            "scope": scope,
             "state": state,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",

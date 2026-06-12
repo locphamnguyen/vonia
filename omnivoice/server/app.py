@@ -49,11 +49,10 @@ def _audio_response(data: bytes, content_type: str, as_json: bool, fmt: str) -> 
     return Response(content=data, media_type=content_type)
 
 
-def _login_error_page() -> str:
-    """Branded error page shown when OIDC login fails or email is not allowed."""
-    return """<!doctype html><html lang="vi"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lỗi đăng nhập · Vonia</title><style>
+# ── Branded auth pages (landing + login error) ───────────────────────────────
+# Cùng một "vỏ" (logo + card + CSS) dùng chung cho cả trang landing và trang lỗi
+# để khỏi lặp markup (DRY). Đổi branding 1 chỗ là cả hai trang đổi theo.
+_BRAND_CSS = """
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;
 justify-content:center;font-family:system-ui,-apple-system,sans-serif;
 background:radial-gradient(1200px 600px at 50% -10%,#0e2a33,#0a0f14 60%);color:#e6eef2}
@@ -70,23 +69,70 @@ box-shadow:0 6px 18px -6px rgba(34,211,238,.6),inset 0 1px 0 rgba(255,255,255,.4
 margin-top:4px;font-weight:600;text-align:left}
 h1{font-size:18px;margin:0 0 10px}p{font-size:14px;color:#8aa0ad;margin:0 0 24px;line-height:1.5}
 .btns{display:flex;flex-direction:column;gap:10px}
-a{display:block;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
+a.btn{display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 24px;
+border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
 .primary{color:#022;background:linear-gradient(135deg,#22d3ee,#0891b2)}
 .secondary{color:#cfe0e8;background:transparent;border:1px solid #283742}
 .secondary:hover{background:#16212a}
-</style></head><body><div class="card">
-<div class="brand">
+.gicon{background:#fff;border-radius:3px;padding:2px;display:grid;place-items:center}
+"""
+
+# Logo Vonia (gradient + sóng âm) — header chung của mọi trang auth.
+_BRAND_HEADER = """<div class="brand">
 <span class="mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
 stroke="#022b32" stroke-width="2.4" stroke-linecap="round">
 <path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
 <span><div class="bname">Vonia<span class="d">.</span></div><div class="bsub">Voice Studio</div></span>
-</div>
-<h1>Không thể đăng nhập</h1>
-<p>Tài khoản của bạn không được phép truy cập Vonia Voice Studio.</p>
-<div class="btns">
-<a class="primary" href="/auth/login">Thử lại</a>
-<a class="secondary" href="/logout">Đăng xuất &amp; đổi tài khoản</a>
-</div></div></body></html>"""
+</div>"""
+
+# SVG logo Google nhiều màu cho nút "Tiếp tục với Google".
+_GOOGLE_ICON = """<span class="gicon"><svg width="16" height="16" viewBox="0 0 48 48">
+<path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.1C12.3 13.2 17.6 9.5 24 9.5z"/>
+<path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.8-9.7 6.8-17.4z"/>
+<path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.7l7.9-6.1z"/>
+<path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.7 2.3-6.4 0-11.7-3.7-13.6-9.4l-7.9 6.1C6.4 42.6 14.6 48 24 48z"/>
+</svg></span>"""
+
+
+def _auth_page(title: str, heading: str, body_html: str) -> str:
+    """Dựng một trang auth có thương hiệu Vonia từ phần thân tuỳ biến."""
+    return (
+        f'<!doctype html><html lang="vi"><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{title} · Vonia</title><style>{_BRAND_CSS}</style></head>"
+        f'<body><div class="card">{_BRAND_HEADER}'
+        f"<h1>{heading}</h1>{body_html}</div></body></html>"
+    )
+
+
+def _landing_page() -> str:
+    """Trang đăng nhập mang thương hiệu Vonia — màn hình đầu tiên người dùng thấy.
+
+    Nút bấm đi tới /auth/login (PKCE flow). Với login policy org Vonia (tắt mật
+    khẩu + 1 IDP), Zitadel auto-redirect thẳng sang Google nên người dùng không
+    thấy trang auth.locnguyendata.com.
+    """
+    return _auth_page(
+        "Đăng nhập",
+        "Chào mừng đến Vonia",
+        '<p>Đăng nhập để bắt đầu tạo giọng nói AI.</p>'
+        '<div class="btns">'
+        f'<a class="btn primary" href="/auth/login">{_GOOGLE_ICON}Tiếp tục với Google</a>'
+        "</div>",
+    )
+
+
+def _login_error_page() -> str:
+    """Trang lỗi khi đăng nhập thất bại hoặc email không được phép."""
+    return _auth_page(
+        "Lỗi đăng nhập",
+        "Không thể đăng nhập",
+        "<p>Tài khoản của bạn không được phép truy cập Vonia Voice Studio.</p>"
+        '<div class="btns">'
+        '<a class="btn primary" href="/auth/login">Thử lại</a>'
+        '<a class="btn secondary" href="/logout">Đăng xuất &amp; đổi tài khoản</a>'
+        "</div>",
+    )
 
 
 def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
@@ -160,7 +206,9 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
             return await call_next(request)
 
         if _wants_html(request):
-            return RedirectResponse("/auth/login", status_code=303)
+            # Trang đầu tiên người dùng thấy là landing thương hiệu Vonia (không
+            # redirect thẳng sang Zitadel nữa). Nút "Tiếp tục với Google" → /auth/login.
+            return HTMLResponse(_landing_page(), status_code=200)
         return _err(401, "Authentication required.", "unauthorized")
 
     # ── Billing ───────────────────────────────────────────────────────────────

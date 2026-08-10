@@ -72,6 +72,26 @@ class OIDCAuth:
         secret = os.environ.get("VONIA_SESSION_SECRET") or secrets.token_hex(32)
         self._secret = secret.encode()
         self.enabled = bool(self.domain and self.client_id)
+        # API keys cho gọi server-to-server (bỏ qua đăng nhập Google). Phân tách
+        # bằng dấu phẩy trong VONIA_API_KEYS. Gửi kèm header `X-API-Key: <key>`
+        # hoặc `Authorization: Bearer <key>`.
+        raw_keys = os.environ.get("VONIA_API_KEYS") or ""
+        self.api_keys: set[str] = {
+            k.strip() for k in raw_keys.split(",") if k.strip()
+        }
+
+    def check_api_key(self, x_api_key: Optional[str], authorization: Optional[str]) -> bool:
+        """True nếu request mang một API key hợp lệ (X-API-Key hoặc Bearer)."""
+        if not self.api_keys:
+            return False
+        candidate = (x_api_key or "").strip()
+        if not candidate and authorization:
+            parts = authorization.strip().split(None, 1)
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                candidate = parts[1].strip()
+        if not candidate:
+            return False
+        return any(hmac.compare_digest(candidate, k) for k in self.api_keys)
 
     # ── OIDC endpoints ───────────────────────────────────────────────────────
 

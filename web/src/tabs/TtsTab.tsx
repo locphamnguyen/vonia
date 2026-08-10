@@ -89,7 +89,7 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
     return lines.map((l, i) => ({
       text: l, time: fmtTime(i * 4.2),
       build: () => api.tts({
-        text: l, language: LANG_NAME[language], voiceId: va.voiceId, instruct: va.instruct,
+        text: l, language: LANG_NAME[language], voiceId: va.voiceId, instruct: va.instruct, seed: va.seed,
         settings: s, format: 'wav',
       }),
     }))
@@ -116,7 +116,7 @@ export function TtsTab({ lang, starred, onStar }: { lang: Lang; starred: Set<str
       const va = voiceArgs()
       toast({ kind: 'info', title: t(lang, 'rendering_merged') })
       try {
-        const blob = await api.tts({ text: lines.join(' '), language: LANG_NAME[language], voiceId: va.voiceId, instruct: va.instruct, settings: s, format: fmt as any })
+        const blob = await api.tts({ text: lines.join(' '), language: LANG_NAME[language], voiceId: va.voiceId, instruct: va.instruct, seed: va.seed, settings: s, format: fmt as any })
         dl(blob, `vonia_merged.${fmt}`)
       } catch (e: any) { toast({ kind: 'err', title: String(e?.message || e) }) }
     } else {

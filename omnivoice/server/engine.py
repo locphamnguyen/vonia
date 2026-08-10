@@ -132,9 +132,18 @@ class Engine:
                 if self._offloaded:
                     await loop.run_in_executor(self._pool, self._onload_blocking)
                 self._last_active = time.monotonic()
-                result = await loop.run_in_executor(self._pool, fn, *args)
-                self._last_active = time.monotonic()
-                return result
+                try:
+                    result = await loop.run_in_executor(self._pool, fn, *args)
+                    self._last_active = time.monotonic()
+                    return result
+                finally:
+                    # Return cached-but-unused VRAM to the driver after every job.
+                    # Without this the PyTorch allocator keeps growing its reserve
+                    # over a session (each generation peaks higher), eventually
+                    # starving the shared GPU — voice cloning would then OOM on the
+                    # reference-audio encode even though the model is only ~2 GiB.
+                    if torch.cuda.is_available():
+                        await loop.run_in_executor(self._pool, torch.cuda.empty_cache)
         finally:
             self._pending -= 1
 
@@ -268,6 +277,7 @@ class Engine:
         ref_audio_ext: str = ".wav",
         ref_text: Optional[str] = None,
         instruct: Optional[str] = None,
+        seed: Optional[int] = None,
         speed: Optional[float] = None,
         duration: Optional[float] = None,
         normalize: bool = False,
@@ -282,6 +292,16 @@ class Engine:
         gen_kwargs = gen_kwargs or {}
 
         def _job() -> np.ndarray:
+            # Seed the RNG so voice-design (instruct) output is reproducible:
+            # same seed → same voice. The UI derives a stable seed per chosen
+            # voice name, so each preset/cast role gets a distinct, consistent
+            # voice instead of a fresh random one each call. Runs inside the
+            # GPU-locked job (serialized at max_concurrency=1) so the global
+            # seed isn't clobbered by a concurrent generation.
+            if seed is not None:
+                torch.manual_seed(int(seed))
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(int(seed))
             kw = dict(
                 text=text,
                 language=language,

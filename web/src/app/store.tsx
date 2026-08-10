@@ -11,7 +11,16 @@ interface VoicesCtx {
   apiOk: boolean
   apiChecked: boolean   // false until the first connectivity probe resolves
   refresh: () => Promise<void>
-  resolve: (name: string) => { voiceId?: string; instruct?: string }
+  resolve: (name: string) => { voiceId?: string; instruct?: string; seed?: number }
+}
+
+/* Stable 31-bit seed from a voice name (FNV-1a). Same name → same seed → same
+   designed voice, so each preset/cast voice has a distinct, consistent identity
+   instead of a fresh random one each generation. */
+function voiceSeed(name: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return (h >>> 0) % 2147483647
 }
 
 const Ctx = createContext<VoicesCtx>(null as any)
@@ -65,9 +74,11 @@ export function VoicesProvider({ children }: { children: React.ReactNode }) {
 
   const resolve = useCallback((name: string) => {
     const u = userVoices.find(v => v.name === name || v.id === name)
-    if (u) return { voiceId: u.id }
+    if (u) return { voiceId: u.id }  // cloned: timbre fixed by ref audio
     const p = presetByName[name]
-    if (p) return { instruct: p.instruct }
+    // Preset = voice-design instruct (stochastic). Pin a per-name seed so the
+    // voice is distinct & consistent (fixes dialogue roles sounding random).
+    if (p) return { instruct: p.instruct, seed: voiceSeed(name) }
     return {}
   }, [userVoices, presets]) // eslint-disable-line
 

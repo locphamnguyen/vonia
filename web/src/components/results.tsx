@@ -1,5 +1,5 @@
 /* Results table + generation bar — ported & wired to real audio blobs. */
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Icon, Btn } from './ui'
 import { t, type Lang } from '../lib/i18n'
 import { avatarColor } from '../lib/data'
@@ -37,6 +37,20 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
   // the user can just hit play there — and highlights the row (# + content).
   const [selId, setSelId] = useState<number | null>(null)
   const select = (r: GenRow) => { setSelId(r.id); if (r.url) onPlay && onPlay(r) }
+  // The action-column play button plays the clip immediately (toggle), instead
+  // of only loading it into the bottom player.
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playingId, setPlayingId] = useState<number | null>(null)
+  useEffect(() => () => { audioRef.current?.pause() }, [])
+  const playNow = (r: GenRow) => {
+    if (!r.url) return
+    if (!audioRef.current) audioRef.current = new Audio()
+    const a = audioRef.current
+    if (playingId === r.id) { a.pause(); setPlayingId(null); return }
+    a.src = r.url; a.onended = () => setPlayingId(null)
+    a.play().then(() => setPlayingId(r.id)).catch(() => setPlayingId(null))
+    setSelId(r.id)
+  }
   return (
     <table className="rtable">
       <thead>
@@ -56,7 +70,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
             {(cols === 'dialogue' || cols === 'time') && <td className="tcode">{r.time || '00:00'}</td>}
             {cols === 'dialogue' && <td>
               <span className="row gap6">
-                <span className="av" style={{ width: 24, height: 24, fontSize: 11, background: avatarColor(r.char || '?') }}>{(r.char || '?')[0]}</span>
+                <span className="av" style={{ width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: '#fff', background: avatarColor(r.char || '?'), boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}>{(r.char || '?')[0]}</span>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{r.char}</span>
               </span>
             </td>}
@@ -66,7 +80,7 @@ export function ResultsTable({ rows, lang, cols = 'content', onRetry, onPlay, fm
             <td><StatusCell state={r.state} lang={lang} /></td>
             <td>
               <div className="row-actions">
-                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'speak')} onClick={(e) => { e.stopPropagation(); select(r) }}><Icon name="play" size={14} fill /></button>
+                <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'speak')} onClick={(e) => { e.stopPropagation(); playNow(r) }}><Icon name={playingId === r.id ? 'pause' : 'play'} size={14} fill={playingId !== r.id} /></button>
                 <button className="mini-btn accent" disabled={r.state !== 'done'} title={t(lang, 'download')} onClick={(e) => { e.stopPropagation(); download(r, `vonia_${String(r.id).padStart(2, '0')}.${fmt}`) }}><Icon name="download" size={14} /></button>
                 {r.state === 'error'
                   ? <button className="mini-btn" title={t(lang, 'retry')} onClick={(e) => { e.stopPropagation(); onRetry && onRetry(r.id) }}><Icon name="refresh" size={14} /></button>

@@ -43,6 +43,7 @@ class TTSRequest(GenParams):
     ref_audio: Optional[str] = Field(None, description="Base64-encoded reference audio (voice cloning).")
     ref_text: Optional[str] = Field(None, description="Transcript of ref_audio (auto-ASR if omitted).")
     instruct: Optional[str] = Field(None, description="Voice-design attributes, e.g. 'female, british accent'.")
+    seed: Optional[int] = Field(None, description="RNG seed. Makes voice-design (instruct) output deterministic — same seed → same voice. Gives each preset/cast voice a stable, distinct identity.")
     speed: Optional[float] = Field(None, description=">1.0 faster, <1.0 slower.")
     duration: Optional[float] = Field(None, description="Fixed output seconds (overrides speed).")
     normalize: bool = Field(False, description="Run the server's text normalizer first.")

@@ -199,6 +199,14 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/auth/"):
             return await call_next(request)
 
+        # API key (server-to-server) — bỏ qua đăng nhập Google nếu key hợp lệ.
+        if auth.check_api_key(
+            request.headers.get("x-api-key"),
+            request.headers.get("authorization"),
+        ):
+            request.state.session = {"email": "api-key", "sub": "api-key"}
+            return await call_next(request)
+
         session_id = request.cookies.get(COOKIE)
         session = await auth.get_session(request.app.state.redis, session_id)
         if session:
@@ -415,7 +423,7 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         audio = await engine.synthesize(
             text=req.text, language=req.language, voice_id=req.voice_id,
             ref_audio_bytes=ref_bytes, ref_text=req.ref_text, instruct=req.instruct,
-            speed=req.speed, duration=req.duration, normalize=req.normalize,
+            seed=req.seed, speed=req.speed, duration=req.duration, normalize=req.normalize,
             gen_kwargs=req.gen_config_kwargs(),
         )
         data, ctype = engine.encode(audio, req.response_format)
@@ -429,6 +437,7 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         voice_id: Optional[str] = Form(None),
         ref_text: Optional[str] = Form(None),
         instruct: Optional[str] = Form(None),
+        seed: Optional[int] = Form(None),
         speed: Optional[float] = Form(None),
         duration: Optional[float] = Form(None),
         normalize: bool = Form(False),
@@ -444,7 +453,7 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
                                  ("postprocess_output", postprocess_output)) if v is not None}
         audio = await engine.synthesize(
             text=text, language=language, voice_id=voice_id, ref_audio_bytes=ref_bytes,
-            ref_audio_ext=ext, ref_text=ref_text, instruct=instruct, speed=speed,
+            ref_audio_ext=ext, ref_text=ref_text, instruct=instruct, seed=seed, speed=speed,
             duration=duration, normalize=normalize, gen_kwargs=gen,
         )
         data, ctype = engine.encode(audio, response_format)

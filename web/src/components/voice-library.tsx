@@ -1,5 +1,6 @@
 /* Voice library — search/filter/favorites. "Your voices" come from the API. */
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon, useToast } from './ui'
 import { t, type Lang } from '../lib/i18n'
 import { VOICES, type Voice } from '../lib/data'
@@ -149,6 +150,27 @@ export function VoiceList({ voices, lang, selected, onSelect, starred, onStar, o
       )}
     </div>
   )
+}
+
+/* Per-role voice picker overlay — opens the same VoiceList used by the TTS tab
+   (presets + cloned voices, search / gender / starred / cloned filters, preview)
+   so a dialogue role can be assigned any voice, including a cloned one. */
+export function VoicePickerOverlay({ lang, title, current, onSelect, onClose, starred, onStar, voices, previewLang }:
+  { lang: Lang; title: string; current: string; onSelect: (n: string) => void; onClose: () => void; starred: Set<string>; onStar: (n: string) => void; voices: UIVoice[]; previewLang?: string }) {
+  return createPortal(
+    <div className="vpick-scrim" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="vpick-panel">
+        <div className="vpick-head">
+          <span className="vh-title"><Icon name="mic" size={16} />{title}</span>
+          <button className="vpick-x" onClick={onClose} aria-label={t(lang, 'clear')}><Icon name="x" size={18} /></button>
+        </div>
+        <div className="vpick-body">
+          <VoiceList voices={voices} lang={lang} selected={current}
+            onSelect={(n) => { onSelect(n); onClose() }} starred={starred} onStar={onStar}
+            mixedCloned previewLang={previewLang} />
+        </div>
+      </div>
+    </div>, document.body)
 }
 
 export function VoiceStore({ lang, selected, onSelect, starred, onStar, yourVoices, onSave, onDeleteVoice }:

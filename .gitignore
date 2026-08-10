@@ -7,6 +7,9 @@ dist/
 build/
 .venv/
 .env
+# Bản sao lưu .env (vd .env.bak-20260801-023817) — chứa secret, KHÔNG commit
+.env.bak*
+.env.*.bak
 .DS_Store
 .pytest_cache/
 .mypy_cache/

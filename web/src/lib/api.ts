@@ -127,6 +127,7 @@ export interface TtsArgs {
   language?: string | null
   voiceId?: string | null     // registered voice
   instruct?: string | null    // voice design (presets / random)
+  seed?: number | null        // stable seed → deterministic, distinct design voice
   refAudioFile?: File | null   // ephemeral clone
   refText?: string | null
   settings: GenSettings
@@ -144,6 +145,7 @@ export async function tts(a: TtsArgs): Promise<Blob> {
     fd.append('file', a.refAudioFile)
     if (a.language) fd.append('language', a.language)
     if (a.refText) fd.append('ref_text', a.refText)
+    if (a.seed != null) fd.append('seed', String(a.seed))
     fd.append('normalize', String(p.normalize))
     fd.append('num_step', String(p.num_step))
     fd.append('guidance_scale', String(p.guidance_scale))
@@ -162,6 +164,7 @@ export async function tts(a: TtsArgs): Promise<Blob> {
   }
   if (a.voiceId) body.voice_id = a.voiceId
   else if (a.instruct) body.instruct = a.instruct
+  if (a.seed != null) body.seed = a.seed
   const res = await fetch(`${API_BASE}/tts`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   })

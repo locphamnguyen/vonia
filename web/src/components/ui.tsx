@@ -7,6 +7,7 @@ import type { Lang } from '../lib/i18n'
 
 /* ---------------- Icons (Lucide path data) ---------------- */
 const ICONS: Record<string, string> = {
+  menu: 'M3 6h18M3 12h18M3 18h18',
   library: 'M16 6l4 14M12 6v14M8 8v12M4 4v16',
   webhook: 'M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17a4 4 0 0 1 8 0M18 17a4 4 0 1 0-8 0M14 11.01l-2.99-5.16a4 4 0 1 0-2.01.96',
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z|M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z',
@@ -96,13 +97,16 @@ export function Btn({ icon, children, variant, size, block, onClick, disabled, i
   )
 }
 
-/* ---------------- Select ---------------- */
-export function Select({ value, options, onChange, placeholder, renderValue, renderOption, width, disabled }: any) {
+/* ---------------- Select ----------------
+   Optional `searchable` shows a filter input; `filters` shows chip buttons
+   (each {label, match}) above the list. The menu is portal'd (position:fixed)
+   so it isn't clipped by an ancestor's overflow; it flips up when there isn't
+   room below, and stays open while you scroll *inside* it. */
+export function Select({ value, options, onChange, placeholder, renderValue, renderOption, width, disabled, searchable, filters, searchPlaceholder, allLabel }: any) {
   const [open, setOpen] = useState(false)
-  // The menu is rendered in a portal (position: fixed) so it can't be clipped by
-  // an ancestor's overflow (rail/panel use overflow:hidden|auto). We measure the
-  // trigger to place it, and close on any scroll/resize to avoid drift.
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const [q, setQ] = useState('')
+  const [fi, setFi] = useState(-1)   // active filter index, -1 = all
   const ref = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -112,22 +116,53 @@ export function Select({ value, options, onChange, placeholder, renderValue, ren
       if (ref.current?.contains(t) || menuRef.current?.contains(t)) return
       setOpen(false)
     }
-    function onMove() { setOpen(false) }
+    // Close on resize or *outer* scroll (position would drift), but keep the
+    // menu open while scrolling its own option list — the previous code closed
+    // on any scroll, so the list could never be scrolled.
+    function onScroll(e: Event) {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return
+      setOpen(false)
+    }
+    function onResize() { setOpen(false) }
     document.addEventListener('mousedown', onDoc)
-    window.addEventListener('resize', onMove)
-    window.addEventListener('scroll', onMove, true)   // capture: also catch rail scroll
+    window.addEventListener('resize', onResize)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('mousedown', onDoc)
-      window.removeEventListener('resize', onMove)
-      window.removeEventListener('scroll', onMove, true)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open])
   const toggle = () => {
     if (disabled) return
-    if (!open && ref.current) setRect(ref.current.getBoundingClientRect())
+    if (!open && ref.current) { setRect(ref.current.getBoundingClientRect()); setQ(''); setFi(-1) }
     setOpen(o => !o)
   }
   const sel = options.find((o: any) => o.value === value)
+
+  const shown = (options as any[]).filter(o => {
+    if (filters && fi >= 0 && !filters[fi].match(o)) return false
+    if (searchable && q.trim()) {
+      const hay = String(o.search ?? o.label ?? o.value ?? '').toLowerCase()
+      return hay.includes(q.trim().toLowerCase())
+    }
+    return true
+  })
+
+  // Position: flip up when there's more room above; clamp into the viewport.
+  let menuStyle: React.CSSProperties = {}
+  if (rect) {
+    const vw = window.innerWidth, vh = window.innerHeight
+    const menuW = Math.max(rect.width, (searchable || filters) ? 248 : 0) || rect.width
+    const left = Math.max(8, Math.min(rect.left, vw - menuW - 8))
+    const below = vh - rect.bottom - 12, above = rect.top - 12
+    const up = below < 240 && above > below
+    const maxH = Math.min(360, Math.max(160, (up ? above : below)))
+    menuStyle = up
+      ? { position: 'fixed', bottom: vh - rect.top + 6, left, width: menuW, maxHeight: maxH }
+      : { position: 'fixed', top: rect.bottom + 6, left, width: menuW, maxHeight: maxH }
+  }
+
   return (
     <div className="select" ref={ref} style={width ? { width } : undefined}>
       <button className={'select-trigger' + (open ? ' open' : '')} disabled={disabled}
@@ -137,15 +172,31 @@ export function Select({ value, options, onChange, placeholder, renderValue, ren
         <Icon name="chevdown" size={16} className="chev" />
       </button>
       {open && rect && createPortal(
-        <div className="select-menu" ref={menuRef}
-          style={{ position: 'fixed', top: rect.bottom + 6, left: rect.left, width: rect.width, right: 'auto' }}>
-          {options.map((o: any) => (
-            <div key={o.value} className={'opt' + (o.value === value ? ' sel' : '')}
-              onClick={() => { onChange(o.value); setOpen(false) }}>
-              {renderOption ? renderOption(o) : <span>{o.label}</span>}
-              {o.value === value && <Icon name="check" size={15} className="check" />}
+        <div className="select-menu" ref={menuRef} style={menuStyle}>
+          {searchable && (
+            <div className="select-search">
+              <Icon name="search" size={14} className="ssico" />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={searchPlaceholder || ''} />
             </div>
-          ))}
+          )}
+          {filters && filters.length > 0 && (
+            <div className="select-filters">
+              <button className={'select-chip' + (fi === -1 ? ' on' : '')} onClick={() => setFi(-1)}>{allLabel || 'All'}</button>
+              {filters.map((f: any, i: number) => (
+                <button key={i} className={'select-chip' + (fi === i ? ' on' : '')} onClick={() => setFi(i)}>{f.label}</button>
+              ))}
+            </div>
+          )}
+          <div className="select-opts">
+            {shown.length === 0 && <div className="opt faint" style={{ cursor: 'default' }}>—</div>}
+            {shown.map((o: any) => (
+              <div key={o.value} className={'opt' + (o.value === value ? ' sel' : '')}
+                onClick={() => { onChange(o.value); setOpen(false) }}>
+                {renderOption ? renderOption(o) : <span>{o.label}</span>}
+                {o.value === value && <Icon name="check" size={15} className="check" />}
+              </div>
+            ))}
+          </div>
         </div>, document.body)}
     </div>
   )

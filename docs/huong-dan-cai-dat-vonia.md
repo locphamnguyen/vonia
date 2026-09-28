@@ -47,7 +47,7 @@ Tài liệu này hướng dẫn **cài đặt từ đầu**, **chạy nền vĩn
 | **Model** | OmniVoice (`k2-fsa/OmniVoice`), tải tự động từ HuggingFace, nạp trên GPU (~2.2 GB VRAM ở float16). | HF cache: `~/.cache/huggingface` |
 | **Tunnel** | `cloudflared` đưa cổng nội bộ 8002 ra HTTPS công khai. | `cloudflared.service` |
 | **Quản lý tiến trình** | `systemd` đảm bảo tự chạy khi boot + tự bật lại khi crash. | `/etc/systemd/system/vonia.service` |
-| **Đăng nhập** | **Zitadel OIDC (SSO qua Google)** + session lưu Redis, chặn theo allowlist email. Bảo vệ toàn bộ trừ `/auth/*`, `/health`, webhook. Xem [mục 14](#14-đăng-nhập-bằng-zitadel-oidc-google--redis--deploy-hoàn-chỉnh). | [omnivoice/server/auth.py](../omnivoice/server/auth.py) |
+| **Đăng nhập** | **Google OAuth + email/mật khẩu**, người đăng ký đầu tiên là Quản trị viên, người sau chờ duyệt; phiên lưu Redis. Bảo vệ toàn bộ trừ `/auth/*`, `/health`, webhook. Xem [dang-ky-dang-nhap.md](dang-ky-dang-nhap.md). | [omnivoice/server/auth.py](../omnivoice/server/auth.py) |
 
 ---
 
@@ -404,6 +404,12 @@ Trước mọi thao tác liên quan Docker / nvidia-ctk / containerd: kiểm tra
 ---
 
 ## 14. Đăng nhập bằng Zitadel OIDC (Google) + Redis — deploy hoàn chỉnh
+
+> ⚠️ **Đã thay thế (28/09/2026).** Vonia không còn dùng Zitadel. Đăng nhập nay là
+> Google OAuth trực tiếp + email/mật khẩu, người đăng ký đầu tiên là Quản trị viên,
+> người sau chờ duyệt — xem [dang-ky-dang-nhap.md](dang-ky-dang-nhap.md). Tài liệu dưới
+> đây giữ lại làm lịch sử.
+
 
 > **Cập nhật 11/06/2026.** Cơ chế đăng nhập user/pass dùng chung (`VONIA_AUTH_USER/PASS`, mục 3.5/4/10) **đã được thay thế** bằng đăng nhập Single Sign-On qua **Zitadel OIDC** (login bằng Google), phiên lưu trong **Redis**. Phần này ghi lại **toàn bộ các bước deploy phía server Vonia** để kích hoạt. Phần cấu hình Zitadel dashboard (tạo Application, bật Google IDP) xem [zitadel-auth-plan.md](zitadel-auth-plan.md) — Phần 2.
 

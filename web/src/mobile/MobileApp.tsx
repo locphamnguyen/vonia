@@ -513,7 +513,7 @@ function SttScreen({ lang }: { lang: Lang }) {
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN') + 'đ'
 const fmtDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '—')
 
-function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lang) => void; onPay: () => void }) {
+function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang: Lang; setLang: (l: Lang) => void; onPay: () => void; onMembers?: () => void; pending?: number }) {
   const toast = useToast()
   const [me, setMe] = useState<api.MeInfo | null>(null)
   const [sub, setSub] = useState<api.Subscription | null>(null)
@@ -548,7 +548,13 @@ function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lan
             <button className="m-btn subtle" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}><Icon name="refresh" size={15} />{t(lang, 'refresh')}</button>
             <button className="m-btn" style={{ color: 'var(--bad)' }} onClick={() => { window.location.href = '/logout' }}><Icon name="login" size={15} />{t(lang, 'logout_device')}</button>
           </div>
-        ) : (
+        ) : null}
+        {me && onMembers ? (
+          <button className="m-btn" style={{ marginTop: 8 }} onClick={onMembers}>
+            <Icon name="users" size={15} />{t(lang, 'nav_members')}{pending > 0 ? ` (${pending})` : ''}
+          </button>
+        ) : null}
+        {me ? null : (
           <button className="m-btn primary" onClick={() => { window.location.href = '/auth/login' }}><Icon name="login" size={15} />{t(lang, 'sign_in_google')}</button>
         )}
       </div>
@@ -706,7 +712,7 @@ function Pane({ active, children }: { active: boolean; children: React.ReactNode
 }
 
 /* ---------- Shell ---------- */
-export function MobileApp({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+export function MobileApp({ lang, setLang, onMembers, pending }: { lang: Lang; setLang: (l: Lang) => void; onMembers?: () => void; pending?: number }) {
   const [tab, setTab] = useState('clone')
   const [pay, setPay] = useState(false)
   const store = useVoices()
@@ -742,7 +748,7 @@ export function MobileApp({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
       {visited.has('dialogue') && <Pane active={tab === 'dialogue'}><DialogueScreen lang={lang} /></Pane>}
       {visited.has('tts') && <Pane active={tab === 'tts'}><TtsScreen lang={lang} /></Pane>}
       {visited.has('stt') && <Pane active={tab === 'stt'}><SttScreen lang={lang} /></Pane>}
-      {visited.has('settings') && <Pane active={tab === 'settings'}><SettingsScreen lang={lang} setLang={setLang} onPay={() => setPay(true)} /></Pane>}
+      {visited.has('settings') && <Pane active={tab === 'settings'}><SettingsScreen lang={lang} setLang={setLang} onPay={() => setPay(true)} onMembers={onMembers} pending={pending} /></Pane>}
 
       <div className="m-nav">
         {navItems.map(([id, icon, label]) => (

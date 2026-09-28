@@ -1,363 +1,496 @@
-"""Tests for OIDC auth module (omnivoice/server/auth.py).
+"""Tests cho đăng ký / đăng nhập / duyệt thành viên (omnivoice/server/auth.py + routes).
 
-Covers 20 code paths:
- 1-3  : OIDCAuth.is_allowed — no allowlist, email in, email not in
- 4-6  : _sign / _unsign — roundtrip, tampered sig, mangled base64
- 7-9  : verify_state_cookie — happy path, state mismatch, no cookie
- 10-12: Redis session — create+get, get unknown id, revoke
- 13   : build_auth_redirect — PKCE params present
- 14-15: OIDCAuth.enabled — with/without env vars
- 16-17: exchange_code — success, HTTP error
- 18-19: get_user_info — success, HTTP error
- 20   : verify_state_cookie rejects cookie signed with different secret
- 21-22: build_auth_redirect — org scope present when ZITADEL_ORG_ID set / absent
- 23-24: branded auth pages — landing CTA, error page actions
- 25-27: auth gate (middleware) — landing for unauth HTML, 401 for API, authed passthrough
+Dùng fakeredis (Redis trong bộ nhớ, cùng API redis.asyncio) thay cho Redis thật.
+Số vòng PBKDF2 được hạ xuống để bộ test chạy nhanh.
 """
 from __future__ import annotations
 
-import json
+import asyncio
+import urllib.parse
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
+import fakeredis
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
-from omnivoice.server.auth import OIDCAuth
-from omnivoice.server.app import create_app, _landing_page, _login_error_page
+import omnivoice.server.auth as A
+from omnivoice.server.app import create_app
 
 
-# ── Fixture helpers ───────────────────────────────────────────────────────────
-
-def make_auth(**env) -> OIDCAuth:
-    """Create an OIDCAuth with explicit env values (not from os.environ)."""
-    auth = OIDCAuth.__new__(OIDCAuth)
-    auth.domain = env.get("domain", "auth.example.com")
-    auth.client_id = env.get("client_id", "test_client")
-    auth.client_secret = env.get("client_secret", "test_secret")
-    auth.redirect_uri = "https://app.example.com/auth/callback"
-    raw_emails = env.get("allowed_emails", "")
-    auth.allowed_emails = {e.strip().lower() for e in raw_emails.split(",") if e.strip()}
-    raw_blocked = env.get("blocked_domains", "")
-    auth.blocked_domains = {d.strip().lower() for d in raw_blocked.split(",") if d.strip()}
-    if auth.domain:
-        auth.blocked_domains.add(auth.domain)
-        auth.blocked_domains.add(f"zitadel.{auth.domain}")
-    auth.org_id = env.get("org_id", "")
-    secret = env.get("session_secret", "test-session-secret-32-chars-long!")
-    auth._secret = secret.encode()
-    auth.enabled = bool(auth.domain and auth.client_id)
-    return auth
+@pytest.fixture(autouse=True)
+def fast_hash(monkeypatch):
+    monkeypatch.setattr(A, "PBKDF2_ITERATIONS", 1000)
 
 
-def make_redis(**data: str) -> AsyncMock:
-    """Fake async Redis with in-memory dict backing."""
-    store: dict[str, str] = dict(data)
-
-    redis = AsyncMock()
-
-    async def _get(key: str):
-        return store.get(key)
-
-    async def _set(key: str, value: str, ex=None):
-        store[key] = value
-
-    async def _delete(key: str):
-        store.pop(key, None)
-
-    redis.get.side_effect = _get
-    redis.set.side_effect = _set
-    redis.delete.side_effect = _delete
-    return redis
+@pytest.fixture
+def redis():
+    return fakeredis.FakeAsyncRedis(decode_responses=True)
 
 
-# ── 1-3: is_allowed ───────────────────────────────────────────────────────────
-
-def test_is_allowed_no_allowlist():
-    """1: Empty allowlist permits everything."""
-    auth = make_auth(allowed_emails="")
-    assert auth.is_allowed("anyone@gmail.com")
+def run(coro):
+    return asyncio.run(coro)
 
 
-def test_is_allowed_email_in_list():
-    """2: Exact match (case-insensitive) returns True."""
-    auth = make_auth(allowed_emails="admin@example.com,user@example.com")
-    assert auth.is_allowed("Admin@Example.COM")
+def make_auth(monkeypatch, **env) -> A.Auth:
+    base = {
+        "GOOGLE_CLIENT_ID": "gid", "GOOGLE_CLIENT_SECRET": "gsecret",
+        "VONIA_PUBLIC_URL": "https://app.example.com",
+        "VONIA_SESSION_SECRET": "test-secret", "VONIA_ALLOWED_DOMAIN": "",
+        "VONIA_ADMIN_EMAILS": "", "VONIA_AUTH": "on", "VONIA_API_KEYS": "",
+    }
+    base.update(env)
+    for k, v in base.items():
+        monkeypatch.setenv(k, v)
+    return A.Auth()
 
 
-def test_is_allowed_email_not_in_list():
-    """3: Unknown email returns False."""
-    auth = make_auth(allowed_emails="admin@example.com")
-    assert not auth.is_allowed("stranger@gmail.com")
+GOOD_PW = "mat-khau-du-dai-123"
 
 
-# ── 4-6: _sign / _unsign ─────────────────────────────────────────────────────
+# ── Mật khẩu ──────────────────────────────────────────────────────────────────
 
-def test_sign_unsign_roundtrip():
-    """4: Signed payload can be recovered."""
-    auth = make_auth()
-    payload = '{"state":"abc","cv":"xyz"}'
-    assert auth._unsign(auth._sign(payload)) == payload
-
-
-def test_unsign_tampered_signature():
-    """5: Modified ciphertext is rejected."""
-    auth = make_auth()
-    token = auth._sign("payload")
-    # Flip the last byte
-    tampered = token[:-2] + ("AA" if token[-2:] != "AA" else "BB")
-    assert auth._unsign(tampered) is None
+def test_hash_roundtrip_and_format():
+    h = A.hash_password(GOOD_PW)
+    assert h.startswith("pbkdf2-sha256$1000$")
+    assert A.verify_password(h, GOOD_PW)
+    assert not A.verify_password(h, GOOD_PW + "x")
 
 
-def test_unsign_mangled_base64():
-    """6: Arbitrary non-base64 string is rejected without exception."""
-    auth = make_auth()
-    assert auth._unsign("not!!valid%%base64") is None
+def test_verify_rejects_garbage():
+    assert not A.verify_password("", "x")
+    assert not A.verify_password("bcrypt$1$aa$bb", "x")
+    assert not A.verify_password("pbkdf2-sha256$abc$aa$bb", "x")
 
 
-# ── 7-9: verify_state_cookie ─────────────────────────────────────────────────
-
-def test_verify_state_cookie_happy():
-    """7: Valid cookie with matching state returns code_verifier."""
-    auth = make_auth()
-    state = "my-state-nonce"
-    cv = "my-code-verifier"
-    cookie_val = auth._sign(json.dumps({"state": state, "cv": cv}))
-    result = auth.verify_state_cookie(cookie_val, state)
-    assert result == cv
+def test_needs_rehash_on_fewer_iterations(monkeypatch):
+    h = A.hash_password(GOOD_PW)
+    assert not A.needs_rehash(h)
+    monkeypatch.setattr(A, "PBKDF2_ITERATIONS", 2000)
+    assert A.needs_rehash(h)
 
 
-def test_verify_state_cookie_state_mismatch():
-    """8: Wrong state value returns None."""
-    auth = make_auth()
-    cookie_val = auth._sign(json.dumps({"state": "correct", "cv": "cv"}))
-    assert auth.verify_state_cookie(cookie_val, "wrong") is None
+def test_sstc_hash_format_compatible():
+    """Băm từ SSTC-HUB-APP (Go, base64 chuẩn không đệm) đọc được ở Vonia."""
+    import base64, hashlib
+    salt = b"0123456789abcdef"
+    dk = hashlib.pbkdf2_hmac("sha256", b"hello-world-pw", salt, 1000, 32)
+    stored = "pbkdf2-sha256$1000${}${}".format(
+        base64.b64encode(salt).decode().rstrip("="), base64.b64encode(dk).decode().rstrip("="))
+    assert A.verify_password(stored, "hello-world-pw")
 
 
-def test_verify_state_cookie_no_cookie():
-    """9: None cookie returns None."""
-    auth = make_auth()
-    assert auth.verify_state_cookie(None, "any-state") is None
+@pytest.mark.parametrize("pw,ok", [
+    ("short", False), ("x" * 129, False), (" " * 12, False),
+    ("alice@example.com", False), ("alice-long-name", True), (GOOD_PW, True),
+])
+def test_password_policy(pw, ok):
+    assert (A.check_new_password(pw, "alice@example.com") == "") is ok
 
 
-# ── 10-12: Redis session ──────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_session_create_and_get():
-    """10: Session created in Redis can be retrieved."""
-    auth = make_auth()
-    redis = make_redis()
-    session_id = await auth.create_session(redis, "user@example.com", "sub-123")
-    session = await auth.get_session(redis, session_id)
-    assert session == {"email": "user@example.com", "sub": "sub-123", "id_token": ""}
+def test_in_domain_requires_single_at():
+    assert A.in_domain("a@sstc.vn", "sstc.vn")
+    assert not A.in_domain("ke@evil.com@sstc.vn", "sstc.vn")
+    assert not A.in_domain("a@evil.vn", "sstc.vn")
 
 
-@pytest.mark.asyncio
-async def test_get_session_unknown():
-    """11: Unknown session_id returns None."""
-    auth = make_auth()
-    redis = make_redis()
-    assert await auth.get_session(redis, "nonexistent-id") is None
+# ── Người đầu tiên là Admin, người sau chờ duyệt ─────────────────────────────
+
+def test_first_registrant_is_active_admin(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    first = run(auth.register_password(store, "Boss@Example.com", "Boss", GOOD_PW))
+    assert first.email == "boss@example.com"
+    assert first.is_admin and first.active and first.approved_by == "bootstrap"
+
+    second = run(auth.register_password(store, "member@example.com", "Mem", GOOD_PW))
+    assert not second.is_admin and second.status == A.STATUS_PENDING
 
 
-@pytest.mark.asyncio
-async def test_revoke_session():
-    """12: Revoked session is no longer retrievable."""
-    auth = make_auth()
-    redis = make_redis()
-    session_id = await auth.create_session(redis, "user@example.com", "sub-xyz")
-    await auth.revoke_session(redis, session_id)
-    assert await auth.get_session(redis, session_id) is None
+def test_first_google_user_is_active_admin(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    u = run(auth.login_google(store, {"email": "g@gmail.com", "name": "G", "email_verified": True}))
+    assert u.is_admin and u.active and u.providers == ["google"]
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.login_google(store, {"email": "h@gmail.com", "name": "H", "email_verified": True}))
+    assert ei.value.code == A.ERR_PENDING
+    assert run(store.get("h@gmail.com")).status == A.STATUS_PENDING
 
 
-# ── 13: build_auth_redirect ───────────────────────────────────────────────────
+def test_bootstrap_race_only_one_admin(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
 
-def test_build_auth_redirect_pkce_params():
-    """13: Authorization URL contains required PKCE + OIDC params."""
-    auth = make_auth()
-    url, cookie_val = auth.build_auth_redirect()
-    assert "code_challenge=" in url
-    assert "code_challenge_method=S256" in url
-    assert "state=" in url
-    assert "client_id=test_client" in url
-    assert "response_type=code" in url
-    # Cookie should be a valid signed blob
-    assert auth._unsign(cookie_val) is not None
+    async def both():
+        return await asyncio.gather(*[
+            store.create(f"u{i}@x.com", "U", provider="password", email_verified=False)
+            for i in range(10)])
+    users = run(both())
+    assert sum(1 for u in users if u.is_admin) == 1
 
 
-# ── 14-15: OIDCAuth.enabled ───────────────────────────────────────────────────
-
-def test_auth_enabled_with_config():
-    """14: Auth is enabled when domain + client_id are set."""
-    auth = make_auth(domain="auth.example.com", client_id="cid")
-    assert auth.enabled is True
-
-
-def test_auth_disabled_without_config():
-    """15: Auth is disabled when domain or client_id is missing."""
-    auth = make_auth(domain="", client_id="")
-    assert auth.enabled is False
+def test_admin_emails_restricts_bootstrap(monkeypatch, redis):
+    auth = make_auth(monkeypatch, VONIA_ADMIN_EMAILS="owner@x.com")
+    store = auth.store(redis)
+    stranger = run(auth.register_password(store, "stranger@x.com", "S", GOOD_PW))
+    assert stranger.status == A.STATUS_PENDING and not stranger.is_admin
+    owner = run(auth.register_password(store, "owner@x.com", "O", GOOD_PW))
+    assert owner.is_admin and owner.active
 
 
-# ── 16-17: exchange_code ─────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_exchange_code_success():
-    """16: Successful token exchange returns parsed JSON."""
-    auth = make_auth()
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"access_token": "tok123", "token_type": "Bearer"}
-    mock_resp.raise_for_status = MagicMock()
-
-    http = AsyncMock(spec=httpx.AsyncClient)
-    http.post.return_value = mock_resp
-
-    tokens = await auth.exchange_code(http, code="authcode", code_verifier="cv")
-    assert tokens["access_token"] == "tok123"
-    http.post.assert_called_once()
+def test_duplicate_registration_returns_none(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "a@x.com", "A", GOOD_PW))
+    assert run(auth.register_password(store, "a@x.com", "A2", GOOD_PW + "z")) is None
 
 
-@pytest.mark.asyncio
-async def test_exchange_code_http_error():
-    """17: HTTP error from token endpoint raises httpx.HTTPStatusError."""
-    auth = make_auth()
+def test_register_validation(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.register_password(auth.store(redis), "not-an-email", "", "short"))
+    assert ei.value.status == 422
+    assert set(ei.value.fields) == {"email", "full_name", "password"}
 
-    def _raise():
-        raise httpx.HTTPStatusError("bad", request=MagicMock(), response=MagicMock())
 
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = _raise
+def test_register_domain_restriction(monkeypatch, redis):
+    auth = make_auth(monkeypatch, VONIA_ALLOWED_DOMAIN="sstc.vn")
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.register_password(auth.store(redis), "a@gmail.com", "A", GOOD_PW))
+    assert ei.value.code == A.ERR_DOMAIN
 
-    http = AsyncMock(spec=httpx.AsyncClient)
-    http.post.return_value = mock_resp
 
+# ── Đăng nhập mật khẩu ───────────────────────────────────────────────────────
+
+def test_password_login_ok_and_wrong(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "a@x.com", "A", GOOD_PW))
+    assert run(auth.login_password(store, "A@X.com", GOOD_PW)).email == "a@x.com"
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.login_password(store, "a@x.com", "wrong-password"))
+    assert ei.value.code == A.ERR_BAD_CREDENTIALS
+
+
+def test_password_login_unknown_email_same_error(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.login_password(auth.store(redis), "ghost@x.com", GOOD_PW))
+    assert ei.value.code == A.ERR_BAD_CREDENTIALS
+
+
+def test_pending_user_blocked_only_after_correct_password(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "admin@x.com", "A", GOOD_PW))
+    run(auth.register_password(store, "p@x.com", "P", GOOD_PW))
+    with pytest.raises(A.AuthError) as wrong:
+        run(auth.login_password(store, "p@x.com", "wrong-password"))
+    assert wrong.value.code == A.ERR_BAD_CREDENTIALS      # không lộ "chờ duyệt"
+    with pytest.raises(A.AuthError) as right:
+        run(auth.login_password(store, "p@x.com", GOOD_PW))
+    assert right.value.code == A.ERR_PENDING
+
+
+def test_lockout_after_five_failures(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "a@x.com", "A", GOOD_PW))
+    for _ in range(A.MAX_FAILED_LOGINS):
+        with pytest.raises(A.AuthError):
+            run(auth.login_password(store, "a@x.com", "wrong-password"))
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.login_password(store, "a@x.com", GOOD_PW))    # đúng mật khẩu vẫn bị khoá
+    assert ei.value.code == A.ERR_TOO_MANY and ei.value.status == 429
+
+
+# ── Google ────────────────────────────────────────────────────────────────────
+
+def test_google_unverified_email_refused(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    with pytest.raises(A.AuthError) as ei:
+        run(auth.login_google(auth.store(redis), {"email": "a@x.com", "email_verified": False}))
+    assert ei.value.code == A.ERR_EMAIL_UNVERIFIED
+
+
+def test_google_login_drops_password_set_by_unverified_party(monkeypatch, redis):
+    """Kẻ đăng ký trước email của người khác bằng mật khẩu → khi chủ thật vào bằng
+    Google, mật khẩu kia bị huỷ."""
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "admin@x.com", "A", GOOD_PW))
+    run(auth.register_password(store, "victim@gmail.com", "Squatter", GOOD_PW))
+    with pytest.raises(A.AuthError):
+        run(auth.login_google(store, {"email": "victim@gmail.com", "email_verified": True}))
+    u = run(store.get("victim@gmail.com"))
+    assert u.email_verified and u.password_hash == "" and u.providers == ["google"]
+
+
+def test_build_google_redirect_and_state(monkeypatch):
+    auth = make_auth(monkeypatch)
+    url, cookie = auth.build_google_redirect()
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(url).query))
+    assert url.startswith(A.GOOGLE_AUTH_URL)
+    assert q["client_id"] == "gid"
+    assert q["redirect_uri"] == "https://app.example.com/auth/callback"
+    assert q["code_challenge_method"] == "S256" and q["prompt"] == "select_account"
+    assert auth.verify_state_cookie(cookie, q["state"])
+    assert auth.verify_state_cookie(cookie, "other") is None
+    assert auth.verify_state_cookie(None, q["state"]) is None
+    other = make_auth(monkeypatch, VONIA_SESSION_SECRET="different")
+    assert other.verify_state_cookie(cookie, q["state"]) is None
+
+
+def test_fetch_google_profile(monkeypatch):
+    auth = make_auth(monkeypatch)
+
+    def handler(req: httpx.Request):
+        if req.url.path.endswith("/token"):
+            return httpx.Response(200, json={"access_token": "at"})
+        assert req.headers["authorization"] == "Bearer at"
+        return httpx.Response(200, json={"email": " A@Gmail.com ", "name": "A", "email_verified": True})
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            return await auth.fetch_google_profile(http, "code", "cv")
+    assert run(go()) == {"email": "a@gmail.com", "name": "A", "email_verified": True}
+
+
+def test_fetch_google_profile_http_error(monkeypatch):
+    auth = make_auth(monkeypatch)
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(
+                lambda r: httpx.Response(400, json={"error": "invalid_grant"}))) as http:
+            await auth.fetch_google_profile(http, "code", "cv")
     with pytest.raises(httpx.HTTPStatusError):
-        await auth.exchange_code(http, code="authcode", code_verifier="cv")
+        run(go())
 
 
-# ── 18-19: get_user_info ──────────────────────────────────────────────────────
+# ── Phiên ─────────────────────────────────────────────────────────────────────
 
-@pytest.mark.asyncio
-async def test_get_user_info_success():
-    """18: Successful userinfo call returns user dict."""
-    auth = make_auth()
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"sub": "sub-abc", "email": "user@gmail.com"}
-    mock_resp.raise_for_status = MagicMock()
+def test_session_resolve_and_disable(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    run(auth.register_password(store, "a@x.com", "A", GOOD_PW))
+    token = run(store.create_session("a@x.com"))
+    user, ok = run(store.resolve_session(token))
+    assert ok and user.email == "a@x.com"
+    assert not any(token in k for k in run(redis.keys("*")))   # chỉ lưu băm
 
-    http = AsyncMock(spec=httpx.AsyncClient)
-    http.get.return_value = mock_resp
-
-    info = await auth.get_user_info(http, access_token="tok123")
-    assert info["email"] == "user@gmail.com"
-    http.get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_get_user_info_http_error():
-    """19: HTTP error from userinfo endpoint raises httpx.HTTPStatusError."""
-    auth = make_auth()
-
-    def _raise():
-        raise httpx.HTTPStatusError("forbidden", request=MagicMock(), response=MagicMock())
-
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = _raise
-
-    http = AsyncMock(spec=httpx.AsyncClient)
-    http.get.return_value = mock_resp
-
-    with pytest.raises(httpx.HTTPStatusError):
-        await auth.get_user_info(http, access_token="tok123")
+    u = run(store.get("a@x.com")); u.status = A.STATUS_DISABLED; run(store.save(u))
+    user, ok = run(store.resolve_session(token))
+    assert not ok
+    assert run(store.resolve_session(token)) is None          # phiên đã bị xoá
 
 
-# ── 20: Cross-secret cookie rejection ────────────────────────────────────────
+# ── Quản trị ─────────────────────────────────────────────────────────────────
 
-def test_verify_state_cookie_wrong_secret():
-    """20: Cookie signed with a different secret is rejected."""
-    auth_a = make_auth(session_secret="secret-A-32-chars-xxxxxxxxxxxxxxxx")
-    auth_b = make_auth(session_secret="secret-B-32-chars-yyyyyyyyyyyyyyyy")
-    state = "nonce"
-    cookie_from_a = auth_a._sign(json.dumps({"state": state, "cv": "verifier"}))
-    assert auth_b.verify_state_cookie(cookie_from_a, state) is None
+def test_admin_actions_and_guards(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    admin = run(auth.register_password(store, "admin@x.com", "A", GOOD_PW))
+    run(auth.register_password(store, "m@x.com", "M", GOOD_PW))
 
+    with pytest.raises(A.AuthError) as ei:
+        run(A.admin_update(store, admin, "m@x.com", "make_admin"))
+    assert ei.value.code == "NOT_ACTIVE"
 
-# ── 21-22: build_auth_redirect org scope (Tier 1, option 1A) ──────────────────
+    m = run(A.admin_update(store, admin, "m@x.com", "approve"))
+    assert m.active and m.approved_by == "admin@x.com"
 
-def test_build_auth_redirect_includes_org_scope():
-    """21: With org_id set, authorize URL carries the org urn (url-encoded)."""
-    auth = make_auth(org_id="376800000000000000")
-    url, _ = auth.build_auth_redirect()
-    # scope "...email urn:zitadel:iam:org:id:<id>" → ':' encodes to %3A
-    assert "urn%3Azitadel%3Aiam%3Aorg%3Aid%3A376800000000000000" in url
+    for action in ("disable", "revoke_admin", "delete"):
+        with pytest.raises(A.AuthError) as ei:
+            run(A.admin_update(store, admin, "admin@x.com", action))
+        assert ei.value.code == "SELF_ACTION"
 
-
-def test_build_auth_redirect_omits_org_scope_when_unset():
-    """22: No org_id → no org urn (back-compat with instance-default login)."""
-    auth = make_auth(org_id="")
-    url, _ = auth.build_auth_redirect()
-    assert "org%3Aid" not in url
-
-
-# ── 23-24: branded auth pages (pure HTML) ─────────────────────────────────────
-
-def test_landing_page_has_google_login_cta():
-    """23: Landing page links to /auth/login with a Google CTA + Vonia brand."""
-    html = _landing_page()
-    assert 'href="/auth/login"' in html
-    assert "Tiếp tục với Google" in html
-    assert "Vonia" in html
+    run(A.admin_update(store, admin, "m@x.com", "make_admin"))
+    run(A.admin_update(store, admin, "m@x.com", "revoke_admin"))
+    assert run(A.admin_update(store, admin, "m@x.com", "disable")).status == A.STATUS_DISABLED
+    assert run(A.admin_update(store, admin, "m@x.com", "delete")) is None
+    assert run(store.get("m@x.com")) is None
+    with pytest.raises(A.AuthError) as ei:
+        run(A.admin_update(store, admin, "m@x.com", "approve"))
+    assert ei.value.status == 404
 
 
-def test_login_error_page_has_retry_and_logout():
-    """24: Error page still offers retry (/auth/login) and logout."""
-    html = _login_error_page()
-    assert 'href="/auth/login"' in html
-    assert 'href="/logout"' in html
+def test_cannot_remove_last_admin(monkeypatch, redis):
+    auth = make_auth(monkeypatch)
+    store = auth.store(redis)
+    a1 = run(auth.register_password(store, "a1@x.com", "A1", GOOD_PW))
+    run(auth.register_password(store, "a2@x.com", "A2", GOOD_PW))
+    run(A.admin_update(store, a1, "a2@x.com", "approve"))
+    a2 = run(A.admin_update(store, a1, "a2@x.com", "make_admin"))
+    run(A.admin_update(store, a2, "a1@x.com", "revoke_admin"))    # còn a2 → được
+    a1 = run(store.get("a1@x.com"))
+    with pytest.raises(A.AuthError) as ei:
+        run(A.admin_update(store, a1, "a2@x.com", "disable"))     # a1 không còn là admin
+    # admin_update không tự kiểm actor là admin (route làm việc đó), nhưng vẫn
+    # chặn gỡ Quản trị viên cuối cùng.
+    assert ei.value.code == "LAST_ADMIN"
 
 
-# ── 25-27: auth gate middleware — landing vs 401 vs passthrough ────────────────
+# ── HTTP: cổng + routes ──────────────────────────────────────────────────────
 
-def _make_gated_app(monkeypatch):
-    """Build the app with OIDC enabled and a fake Redis (no lifespan)."""
-    monkeypatch.setenv("ZITADEL_DOMAIN", "auth.example.com")
-    monkeypatch.setenv("ZITADEL_CLIENT_ID", "cid")
-    monkeypatch.setenv("VONIA_PUBLIC_URL", "https://app.example.com")
-    monkeypatch.setenv("VONIA_ALLOWED_EMAILS", "")  # open mode
+@pytest.fixture
+def client(monkeypatch, redis):
+    make_auth(monkeypatch)
     app = create_app(MagicMock(), web_dir=None)
-    # Lifespan doesn't run without `with TestClient(...)`, so wire Redis by hand.
-    app.state.redis = make_redis()
-    return app
+    # Lifespan không chạy nếu không dùng `with TestClient(...)` → gắn tay.
+    app.state.redis = redis
+    app.state.http = AsyncMock()
+    return TestClient(app)
 
 
-def test_gate_serves_landing_for_unauth_html(monkeypatch):
-    """25: Unauthenticated HTML request gets the branded landing (200), not a 303."""
-    app = _make_gated_app(monkeypatch)
-    client = TestClient(app)
-    resp = client.get("/studio", headers={"accept": "text/html"})
-    assert resp.status_code == 200
-    assert "Tiếp tục với Google" in resp.text
+def _register(client, email, name="X", pw=GOOD_PW):
+    return client.post("/auth/register", json={"email": email, "full_name": name, "password": pw})
 
 
-def test_gate_401_for_unauth_api(monkeypatch):
-    """26 (regression): Unauthenticated non-HTML request still gets 401 JSON."""
-    app = _make_gated_app(monkeypatch)
-    client = TestClient(app)
-    resp = client.get("/v1/voices", headers={"accept": "application/json"})
-    assert resp.status_code == 401
+def test_gate_login_page_for_unauth_html(client):
+    r = client.get("/studio", headers={"accept": "text/html"})
+    assert r.status_code == 200
+    assert 'data-action="/auth/login"' in r.text and 'href="/auth/google"' in r.text
 
 
-def test_gate_passthrough_for_authed(monkeypatch):
-    """27 (regression): Authenticated request passes the gate (no landing, no 401)."""
-    app = _make_gated_app(monkeypatch)
-    app.state.redis = make_redis(**{
-        "vonia:session:sess-abc": json.dumps(
-            {"email": "u@gmail.com", "sub": "s1", "id_token": ""}
-        )
-    })
-    client = TestClient(app)
-    client.cookies.set("vonia_session", "sess-abc")
-    resp = client.get("/no-such-gated-path", headers={"accept": "text/html"})
-    # Gate let it through; the route simply doesn't exist → 404, not landing/401.
-    assert resp.status_code == 404
-    assert "Tiếp tục với Google" not in resp.text
+def test_gate_401_for_unauth_api(client):
+    assert client.get("/v1/voices", headers={"accept": "application/json"}).status_code == 401
+
+
+def test_google_button_hidden_when_unconfigured(monkeypatch, redis):
+    make_auth(monkeypatch, GOOGLE_CLIENT_ID="", GOOGLE_CLIENT_SECRET="")
+    app = create_app(MagicMock(), web_dir=None)
+    app.state.redis = redis
+    c = TestClient(app)
+    r = c.get("/auth/login")
+    assert r.status_code == 200 and "/auth/google" not in r.text
+    r = c.get("/auth/google", follow_redirects=False)
+    assert r.status_code == 303 and "loi=google_chua_bat" in r.headers["location"]
+
+
+def test_register_page_announces_first_admin(client):
+    assert "Quản trị viên" in client.get("/auth/register").text
+    _register(client, "boss@x.com")
+    client.cookies.clear()
+    assert "sau khi Quản trị viên duyệt" in client.get("/auth/register").text
+
+
+def test_http_full_flow(client):
+    # 1. Người đầu tiên: admin, đăng nhập ngay.
+    r = _register(client, "boss@x.com", "Boss")
+    assert r.status_code == 200 and r.json()["user"]["is_admin"]
+    assert "vonia_session" in r.cookies
+    me = client.get("/auth/me").json()
+    assert me["email"] == "boss@x.com" and me["is_admin"] and me["status"] == "active"
+    boss_cookie = client.cookies.get("vonia_session")
+
+    # 2. Người thứ hai: chờ duyệt, không có cookie.
+    client.cookies.clear()
+    r = _register(client, "mem@x.com", "Mem")
+    assert r.status_code == 202 and "vonia_session" not in r.cookies
+    # Đăng ký trùng → cùng câu, cùng status.
+    r2 = _register(client, "mem@x.com", "Mem")
+    assert r2.status_code == 202 and r2.json() == r.json()
+
+    r = client.post("/auth/login", json={"email": "mem@x.com", "password": GOOD_PW})
+    assert r.status_code == 403 and r.json()["redirect"] == "/auth/pending"
+
+    # 3. Admin duyệt.
+    client.cookies.set("vonia_session", boss_cookie)
+    lst = client.get("/admin/users").json()
+    assert lst["pending"] == 1 and lst["users"][0]["email"] == "mem@x.com"
+    assert "password_hash" not in lst["users"][0]
+    r = client.post("/admin/users/mem@x.com", json={"action": "approve"})
+    assert r.status_code == 200 and r.json()["user"]["status"] == "active"
+
+    # 4. Thành viên đăng nhập được, nhưng không vào được trang quản trị.
+    client.cookies.clear()
+    r = client.post("/auth/login", json={"email": "mem@x.com", "password": GOOD_PW})
+    assert r.status_code == 200 and r.json()["redirect"] == "/"
+    assert client.get("/admin/users").status_code == 403
+    mem_cookie = client.cookies.get("vonia_session")
+
+    # 5. Admin khoá → thành viên văng ra ngay ở yêu cầu kế tiếp.
+    client.cookies.set("vonia_session", boss_cookie)
+    client.post("/admin/users/mem@x.com", json={"action": "disable"})
+    client.cookies.set("vonia_session", mem_cookie)
+    r = client.get("/v1/presets", headers={"accept": "application/json"})
+    assert r.status_code == 403
+
+    # 6. Đăng xuất.
+    client.cookies.set("vonia_session", boss_cookie)
+    client.get("/logout", follow_redirects=False)
+    client.cookies.set("vonia_session", boss_cookie)
+    assert client.get("/auth/me").status_code == 401
+
+
+def test_http_wrong_password_401(client):
+    _register(client, "boss@x.com")
+    client.cookies.clear()
+    r = client.post("/auth/login", json={"email": "boss@x.com", "password": "nope-nope-nope"})
+    assert r.status_code == 401 and r.json()["error"]["type"] == A.ERR_BAD_CREDENTIALS
+
+
+def test_http_register_validation_422(client):
+    r = client.post("/auth/register", json={"email": "bad", "full_name": "", "password": "x"})
+    assert r.status_code == 422 and "fields" in r.json()["error"]
+
+
+def test_register_rejects_non_json_body(client):
+    """Form giả mạo từ trang khác (text/plain / form-urlencoded) không đi qua."""
+    r = client.post("/auth/register", content="email=a@x.com",
+                    headers={"content-type": "application/x-www-form-urlencoded"})
+    assert r.status_code == 422
+
+
+def test_google_start_sets_state_cookie(client):
+    r = client.get("/auth/google", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith(A.GOOGLE_AUTH_URL)
+    assert "vonia_oauth_state" in r.headers["set-cookie"]
+
+
+def test_google_callback_state_mismatch(client):
+    r = client.get("/auth/callback?code=c&state=s", follow_redirects=False)
+    assert r.status_code == 303 and "loi=phien_dang_nhap_hong" in r.headers["location"]
+
+
+def test_google_callback_user_denied(client):
+    r = client.get("/auth/callback?error=access_denied", follow_redirects=False)
+    assert "loi=google_tu_choi" in r.headers["location"]
+
+
+def _google_callback(client, monkeypatch, profile):
+    r = client.get("/auth/google", follow_redirects=False)
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["location"]).query))
+    monkeypatch.setattr(A.Auth, "fetch_google_profile", AsyncMock(return_value=profile))
+    return client.get(f"/auth/callback?code=c&state={q['state']}", follow_redirects=False)
+
+
+def test_google_callback_first_user_admin_then_pending(client, monkeypatch):
+    r = _google_callback(client, monkeypatch,
+                         {"email": "g@gmail.com", "name": "G", "email_verified": True})
+    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert client.get("/auth/me").json()["is_admin"]
+
+    client.cookies.clear()
+    r = _google_callback(client, monkeypatch,
+                         {"email": "n@gmail.com", "name": "N", "email_verified": True})
+    assert r.headers["location"] == "/auth/pending"
+    assert client.get("/auth/me").status_code == 401
+
+
+def test_api_key_bypasses_gate_but_not_admin(monkeypatch, redis):
+    make_auth(monkeypatch, VONIA_API_KEYS="k1")
+    app = create_app(MagicMock(), web_dir=None)
+    app.state.redis = redis
+    c = TestClient(app)
+    r = c.get("/no-such-path", headers={"x-api-key": "k1"})
+    assert r.status_code == 404                       # qua cổng
+    assert c.get("/admin/users", headers={"x-api-key": "k1"}).status_code == 403
+
+
+def test_auth_off_disables_gate(monkeypatch, redis):
+    make_auth(monkeypatch, VONIA_AUTH="off")
+    app = create_app(MagicMock(), web_dir=None)
+    app.state.redis = redis
+    assert TestClient(app).get("/no-such-path").status_code == 404

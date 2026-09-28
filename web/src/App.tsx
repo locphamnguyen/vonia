@@ -10,6 +10,7 @@ import { SttTab } from './tabs/SttTab'
 import { EnvTab } from './tabs/EnvTab'
 import { WebhookView } from './tabs/WebhookView'
 import { SettingsModal } from './components/SettingsModal'
+import { MembersModal } from './components/MembersModal'
 import { Onboarding } from './components/Onboarding'
 import { MobileApp } from './mobile/MobileApp'
 
@@ -25,7 +26,7 @@ function useIsMobile() {
   return m
 }
 
-function Sidebar({ lang, nav, setNav, onSettings, sub, userEmail }: any) {
+function Sidebar({ lang, nav, setNav, onSettings, onMembers, pending, isAdmin, sub, userEmail }: any) {
   const active = !!sub?.active
   return (
     <aside className="sidebar">
@@ -42,6 +43,12 @@ function Sidebar({ lang, nav, setNav, onSettings, sub, userEmail }: any) {
       <button className={'nav-item' + (nav === 'webhook' ? ' active' : '')} onClick={() => setNav('webhook')}>
         <Icon name="webhook" size={18} className="ico" />{t(lang, 'nav_webhook')}
       </button>
+      {isAdmin && (
+        <button className="nav-item" onClick={onMembers}>
+          <Icon name="users" size={18} className="ico" />{t(lang, 'nav_members')}
+          {pending > 0 && <span className="nav-badge nav-badge-alert">{pending}</span>}
+        </button>
+      )}
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
         <button className="nav-item" onClick={onSettings}>
@@ -183,6 +190,11 @@ export default function App() {
   useEffect(() => { refreshSub() }, [refreshSub])
   const [me, setMe] = useState<api.MeInfo | null>(null)
   useEffect(() => { api.getMe().then(setMe).catch(() => {}) }, [])
+  const [showMembers, setShowMembers] = useState(false)
+  const [pending, setPending] = useState(0)
+  useEffect(() => {
+    if (me?.is_admin) api.listMembers().then(r => setPending(r.pending)).catch(() => {})
+  }, [me?.is_admin])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('vonia.theme', theme) }, [theme])
   useEffect(() => { document.documentElement.lang = lang; localStorage.setItem('vonia.lang', lang) }, [lang])
@@ -200,10 +212,12 @@ export default function App() {
         <VoicesProvider>
           <PaymentReturn lang={lang} onPaid={refreshSub} />
           {isMobile ? (
-            <MobileApp lang={lang} setLang={setLang} />
+            <MobileApp lang={lang} setLang={setLang} onMembers={me?.is_admin ? () => setShowMembers(true) : undefined} pending={pending} />
           ) : (
           <div className="app">
-            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)} sub={sub} userEmail={me?.email} />
+            <Sidebar lang={lang} nav={nav} setNav={setNav} onSettings={() => setShowSettings(true)}
+              onMembers={() => setShowMembers(true)} pending={pending} isAdmin={!!me?.is_admin}
+              sub={sub} userEmail={me?.email} />
             <div className="main">
               <ConnectionBanner lang={lang} />
               {nav === 'studio' ? (
@@ -230,6 +244,7 @@ export default function App() {
           </div>
           )}
           {showSettings && <SettingsModal lang={lang} setLang={setLang} onClose={() => setShowSettings(false)} />}
+          {showMembers && me && <MembersModal lang={lang} me={me} onClose={() => setShowMembers(false)} onChanged={setPending} />}
           {showOnboarding && <Onboarding lang={lang} onClose={closeOnboarding} />}
         </VoicesProvider>
       </ToastProvider>

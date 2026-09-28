@@ -10,6 +10,7 @@ import base64
 import json
 import logging
 import os
+import urllib.parse
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -19,10 +20,16 @@ from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
 
-from .auth import COOKIE, PUBLIC_PATHS, STATE_COOKIE, OIDCAuth
+from .auth import (
+    BOOTSTRAP_KEY, COOKIE, ERR_GOOGLE_DENIED, ERR_LOGIN_INVALID, ERR_PENDING,
+    PUBLIC_PATHS, REASONS, SESSION_TTL, STATE_COOKIE, STATUS_PENDING, STATUSES,
+    Auth, AuthError, User, UserStore, admin_update,
+)
+from .auth_pages import login_page, pending_page, register_page
 from .billing import BillingStore, OrderRecord, new_invoice_number, new_payment_code
 from .engine import Engine, QueueFullError
 from .normalize import NormalizerError
@@ -49,90 +56,20 @@ def _audio_response(data: bytes, content_type: str, as_json: bool, fmt: str) -> 
     return Response(content=data, media_type=content_type)
 
 
-# ── Branded auth pages (landing + login error) ───────────────────────────────
-# Cùng một "vỏ" (logo + card + CSS) dùng chung cho cả trang landing và trang lỗi
-# để khỏi lặp markup (DRY). Đổi branding 1 chỗ là cả hai trang đổi theo.
-_BRAND_CSS = """
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;
-justify-content:center;font-family:system-ui,-apple-system,sans-serif;
-background:radial-gradient(1200px 600px at 50% -10%,#0e2a33,#0a0f14 60%);color:#e6eef2}
-.card{width:380px;padding:40px 32px;background:#10171d;border:1px solid #1d2a33;
-border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center}
-.brand{display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:26px}
-.mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
-background:linear-gradient(135deg,#22d3ee,#0891b2);
-box-shadow:0 6px 18px -6px rgba(34,211,238,.6),inset 0 1px 0 rgba(255,255,255,.4)}
-.mark svg{display:block}
-.bname{font-weight:800;font-size:21px;letter-spacing:-.02em;line-height:1;text-align:left}
-.bname .d{color:#22d3ee}
-.bsub{font-size:9px;color:#5f7682;letter-spacing:.12em;text-transform:uppercase;
-margin-top:4px;font-weight:600;text-align:left}
-h1{font-size:18px;margin:0 0 10px}p{font-size:14px;color:#8aa0ad;margin:0 0 24px;line-height:1.5}
-.btns{display:flex;flex-direction:column;gap:10px}
-a.btn{display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 24px;
-border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
-.primary{color:#022;background:linear-gradient(135deg,#22d3ee,#0891b2)}
-.secondary{color:#cfe0e8;background:transparent;border:1px solid #283742}
-.secondary:hover{background:#16212a}
-.gicon{background:#fff;border-radius:3px;padding:2px;display:grid;place-items:center}
-"""
-
-# Logo Vonia (gradient + sóng âm) — header chung của mọi trang auth.
-_BRAND_HEADER = """<div class="brand">
-<span class="mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-stroke="#022b32" stroke-width="2.4" stroke-linecap="round">
-<path d="M2 10v3M6 6v11M10 3v18M14 8v7M18 5v13M22 10v3"/></svg></span>
-<span><div class="bname">Vonia<span class="d">.</span></div><div class="bsub">Voice Studio</div></span>
-</div>"""
-
-# SVG logo Google nhiều màu cho nút "Tiếp tục với Google".
-_GOOGLE_ICON = """<span class="gicon"><svg width="16" height="16" viewBox="0 0 48 48">
-<path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.1C12.3 13.2 17.6 9.5 24 9.5z"/>
-<path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.8-9.7 6.8-17.4z"/>
-<path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.5 10.7l7.9-6.1z"/>
-<path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.7 2.3-7.7 2.3-6.4 0-11.7-3.7-13.6-9.4l-7.9 6.1C6.4 42.6 14.6 48 24 48z"/>
-</svg></span>"""
+# ── Thân yêu cầu của các route xác thực / quản trị ─────────────────────────
+class LoginBody(BaseModel):
+    email: str = ""
+    password: str = ""
 
 
-def _auth_page(title: str, heading: str, body_html: str) -> str:
-    """Dựng một trang auth có thương hiệu Vonia từ phần thân tuỳ biến."""
-    return (
-        f'<!doctype html><html lang="vi"><head><meta charset="utf-8">'
-        f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{title} · Vonia</title><style>{_BRAND_CSS}</style></head>"
-        f'<body><div class="card">{_BRAND_HEADER}'
-        f"<h1>{heading}</h1>{body_html}</div></body></html>"
-    )
+class RegisterBody(BaseModel):
+    email: str = ""
+    full_name: str = ""
+    password: str = ""
 
 
-def _landing_page() -> str:
-    """Trang đăng nhập mang thương hiệu Vonia — màn hình đầu tiên người dùng thấy.
-
-    Nút bấm đi tới /auth/login (PKCE flow). Với login policy org Vonia (tắt mật
-    khẩu + 1 IDP), Zitadel auto-redirect thẳng sang Google nên người dùng không
-    thấy trang auth.locnguyendata.com.
-    """
-    return _auth_page(
-        "Đăng nhập",
-        "Chào mừng đến Vonia",
-        '<p>Đăng nhập để bắt đầu tạo giọng nói AI.</p>'
-        '<div class="btns">'
-        f'<a class="btn primary" href="/auth/login">{_GOOGLE_ICON}Tiếp tục với Google</a>'
-        "</div>",
-    )
-
-
-def _login_error_page() -> str:
-    """Trang lỗi khi đăng nhập thất bại hoặc email không được phép."""
-    return _auth_page(
-        "Lỗi đăng nhập",
-        "Không thể đăng nhập",
-        "<p>Tài khoản của bạn không được phép truy cập Vonia Voice Studio.</p>"
-        '<div class="btns">'
-        '<a class="btn primary" href="/auth/login">Thử lại</a>'
-        '<a class="btn secondary" href="/logout">Đăng xuất &amp; đổi tài khoản</a>'
-        "</div>",
-    )
+class AdminAction(BaseModel):
+    action: str
 
 
 def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
@@ -187,10 +124,17 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         return await call_next(request)
 
     # ── Auth ──────────────────────────────────────────────────────────────────
-    auth = OIDCAuth()
+    auth = Auth()
+    if not auth.enabled:
+        log.warning("VONIA_AUTH=off — cổng đăng nhập ĐANG TẮT (chỉ dùng khi phát triển).")
+    elif not auth.google_enabled:
+        log.info("Google OAuth chưa cấu hình — chỉ đăng nhập bằng email/mật khẩu.")
 
     def _wants_html(request: Request) -> bool:
         return "text/html" in request.headers.get("accept", "")
+
+    def _store(request: Request) -> UserStore:
+        return auth.store(request.app.state.redis)
 
     @app.middleware("http")
     async def _gate(request: Request, call_next):
@@ -199,7 +143,7 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/auth/"):
             return await call_next(request)
 
-        # API key (server-to-server) — bỏ qua đăng nhập Google nếu key hợp lệ.
+        # API key (server-to-server) — bỏ qua đăng nhập nếu key hợp lệ.
         if auth.check_api_key(
             request.headers.get("x-api-key"),
             request.headers.get("authorization"),
@@ -207,17 +151,26 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
             request.state.session = {"email": "api-key", "sub": "api-key"}
             return await call_next(request)
 
-        session_id = request.cookies.get(COOKIE)
-        session = await auth.get_session(request.app.state.redis, session_id)
-        if session:
-            request.state.session = session
+        resolved = await _store(request).resolve_session(request.cookies.get(COOKIE))
+        if resolved and resolved[1]:
+            user = resolved[0]
+            request.state.user = user
+            request.state.session = {"email": user.email, "sub": user.email}
             return await call_next(request)
 
+        # Không có phiên, hoặc tài khoản vừa bị khoá → xoá cookie hỏng.
         if _wants_html(request):
-            # Trang đầu tiên người dùng thấy là landing thương hiệu Vonia (không
-            # redirect thẳng sang Zitadel nữa). Nút "Tiếp tục với Google" → /auth/login.
-            return HTMLResponse(_landing_page(), status_code=200)
-        return _err(401, "Authentication required.", "unauthorized")
+            if resolved:  # phiên trỏ tới tài khoản không còn kích hoạt
+                resp = RedirectResponse("/auth/pending", status_code=303)
+            else:
+                resp = HTMLResponse(login_page(auth.google_enabled), status_code=200)
+        elif resolved:
+            resp = _err(403, "Tài khoản chưa được kích hoạt.", ERR_PENDING)
+        else:
+            resp = _err(401, "Authentication required.", "unauthorized")
+        if request.cookies.get(COOKIE):
+            resp.delete_cookie(COOKIE, path="/")
+        return resp
 
     # ── Billing ───────────────────────────────────────────────────────────────
     billing = BillingStore(
@@ -265,25 +218,105 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
 
     # ── Auth routes ───────────────────────────────────────────────────────────
 
-    @app.get("/auth/login")
-    async def auth_login(request: Request):
-        """Khởi tạo PKCE flow, redirect sang Zitadel."""
-        if not auth.enabled:
-            return _err(503, "OIDC auth not configured.", "auth_unconfigured")
-        # Nếu đã có session hợp lệ → về thẳng app
-        session_id = request.cookies.get(COOKIE)
-        if await auth.get_session(request.app.state.redis, session_id):
-            return RedirectResponse("/", status_code=303)
+    def _secure(request: Request) -> bool:
+        return (request.headers.get("x-forwarded-proto", "").startswith("https")
+                or request.url.scheme == "https")
 
-        url, state_cookie_val = auth.build_auth_redirect()
+    def _set_session_cookie(request: Request, resp: Response, token: str) -> None:
+        # HttpOnly: JS không đọc được. Lax (không Strict): lượt gọi về từ Google
+        # là điều hướng cấp cao nhất từ tên miền khác, Strict sẽ chặn cookie.
+        resp.set_cookie(COOKIE, token, httponly=True, samesite="lax",
+                        secure=_secure(request), max_age=SESSION_TTL, path="/")
+
+    def _auth_err(exc: AuthError) -> JSONResponse:
+        body: dict = {"message": exc.message, "type": exc.code}
+        if exc.fields:
+            body["fields"] = exc.fields
+        return JSONResponse(status_code=exc.status, content={"error": body})
+
+    def _to_login(reason: str) -> RedirectResponse:
+        # URL đích dựng từ hằng số, không từ yêu cầu → không có open redirect.
+        resp = RedirectResponse(
+            "/auth/pending" if reason == "cho_duyet"
+            else "/auth/login?" + urllib.parse.urlencode({"loi": reason}),
+            status_code=303)
+        resp.delete_cookie(STATE_COOKIE, path="/auth/callback")
+        return resp
+
+    async def _current_user(request: Request) -> Optional[User]:
+        resolved = await _store(request).resolve_session(request.cookies.get(COOKIE))
+        return resolved[0] if resolved and resolved[1] else None
+
+    @app.get("/auth/login")
+    async def auth_login_page(request: Request, loi: Optional[str] = Query(None)):
+        """Trang đăng nhập (email/mật khẩu + nút Google)."""
+        if await _current_user(request):
+            return RedirectResponse("/", status_code=303)
+        return HTMLResponse(login_page(auth.google_enabled, loi))
+
+    @app.get("/auth/register")
+    async def auth_register_page(request: Request):
+        if await _current_user(request):
+            return RedirectResponse("/", status_code=303)
+        first = not await request.app.state.redis.exists(BOOTSTRAP_KEY)
+        return HTMLResponse(register_page(auth.google_enabled, first_user=bool(first)))
+
+    @app.get("/auth/pending")
+    async def auth_pending_page():
+        return HTMLResponse(pending_page())
+
+    @app.post("/auth/login")
+    async def auth_login(request: Request, body: LoginBody):
+        """Đăng nhập bằng email + mật khẩu → đặt cookie phiên."""
+        store = _store(request)
+        try:
+            user = await auth.login_password(store, body.email, body.password)
+        except AuthError as exc:
+            if exc.code == ERR_PENDING:
+                return JSONResponse(status_code=403, content={
+                    "error": {"message": exc.message, "type": exc.code},
+                    "redirect": "/auth/pending"})
+            return _auth_err(exc)
+        token = await store.create_session(user.email)
+        resp = JSONResponse({"user": user.public(), "redirect": "/"})
+        _set_session_cookie(request, resp, token)
+        log.info("Password login: %s", user.email)
+        return resp
+
+    @app.post("/auth/register")
+    async def auth_register(request: Request, body: RegisterBody):
+        """Đăng ký bằng email + mật khẩu.
+
+        Người đầu tiên → Quản trị viên, đăng nhập luôn. Người sau → chờ duyệt;
+        email trùng nhận CÙNG câu trả lời (không dò được email đã đăng ký).
+        """
+        store = _store(request)
+        try:
+            user = await auth.register_password(store, body.email, body.full_name, body.password)
+        except AuthError as exc:
+            return _auth_err(exc)
+        if user is not None and user.active:
+            token = await store.create_session(user.email)
+            resp = JSONResponse({"user": user.public(), "redirect": "/",
+                                 "message": "Đã tạo tài khoản Quản trị viên."})
+            _set_session_cookie(request, resp, token)
+            log.info("Bootstrap admin registered: %s", user.email)
+            return resp
+        if user is not None:
+            log.info("New registration pending approval: %s", user.email)
+        return JSONResponse(status_code=202, content={
+            "message": "Đã nhận yêu cầu đăng ký. Tài khoản sẽ dùng được sau khi "
+                       "Quản trị viên duyệt."})
+
+    @app.get("/auth/google")
+    async def auth_google(request: Request):
+        """Bắt đầu OAuth + PKCE, chuyển sang Google."""
+        if not auth.google_enabled:
+            return _to_login("google_chua_bat")
+        url, state_cookie_val = auth.build_google_redirect()
         resp = RedirectResponse(url, status_code=303)
-        secure = (request.headers.get("x-forwarded-proto", "").startswith("https")
-                  or request.url.scheme == "https")
-        resp.set_cookie(
-            STATE_COOKIE, state_cookie_val,
-            httponly=True, samesite="lax", secure=secure,
-            max_age=300, path="/auth/callback",
-        )
+        resp.set_cookie(STATE_COOKIE, state_cookie_val, httponly=True, samesite="lax",
+                        secure=_secure(request), max_age=600, path="/auth/callback")
         return resp
 
     @app.get("/auth/callback")
@@ -293,97 +326,87 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         state: Optional[str] = Query(None),
         error: Optional[str] = Query(None),
     ):
-        """Nhận callback từ Zitadel, tạo session, redirect về app."""
-        # Lỗi từ Zitadel (user cancel hoặc deny)
+        """Nhận lượt gọi về từ Google, áp luật duyệt, mở phiên."""
         if error:
-            log.info("OIDC callback error: %s", error)
-            resp = RedirectResponse("/auth/login?error=1", status_code=303)
-            resp.delete_cookie(STATE_COOKIE, path="/auth/callback")
-            return resp
-
-        if not code or not state:
-            return RedirectResponse("/auth/login?error=1", status_code=303)
-
-        # Xác thực state cookie
-        state_cookie_val = request.cookies.get(STATE_COOKIE)
-        code_verifier = auth.verify_state_cookie(state_cookie_val, state)
-        if not code_verifier:
-            log.warning("OIDC callback: state mismatch or missing state cookie.")
-            return RedirectResponse("/auth/login?error=1", status_code=303)
-
-        # Đổi code lấy token
+            log.info("Google OAuth callback error: %s", error)
+            return _to_login(REASONS[ERR_GOOGLE_DENIED])
+        code_verifier = auth.verify_state_cookie(request.cookies.get(STATE_COOKIE), state or "")
+        if not code or not code_verifier:
+            log.warning("Google OAuth callback: missing code or state mismatch.")
+            return _to_login(REASONS[ERR_LOGIN_INVALID])
         try:
-            tokens = await auth.exchange_code(request.app.state.http, code, code_verifier)
-        except httpx.HTTPError as exc:
-            log.error("OIDC token exchange failed: %s", exc)
-            return RedirectResponse("/auth/login?error=1", status_code=303)
+            profile = await auth.fetch_google_profile(request.app.state.http, code, code_verifier)
+        except (httpx.HTTPError, ValueError) as exc:
+            log.error("Google OAuth exchange failed: %s", exc)
+            return _to_login("he_thong")
 
-        # Lấy thông tin user
+        store = _store(request)
         try:
-            user_info = await auth.get_user_info(
-                request.app.state.http, tokens["access_token"]
-            )
-        except httpx.HTTPError as exc:
-            log.error("OIDC userinfo failed: %s", exc)
-            return RedirectResponse("/auth/login?error=1", status_code=303)
+            user = await auth.login_google(store, profile)
+        except AuthError as exc:
+            log.info("Google login refused (%s): %s", exc.code, profile.get("email"))
+            return _to_login(REASONS.get(exc.code, "he_thong"))
 
-        email = (user_info.get("email") or "").strip().lower()
-        sub = user_info.get("sub") or ""
-
-        # Kiểm tra allowlist
-        if not auth.is_allowed(email):
-            log.warning("OIDC login rejected for email: %s", email)
-            resp = RedirectResponse("/auth/login?forbidden=1", status_code=303)
-            resp.delete_cookie(STATE_COOKIE, path="/auth/callback")
-            return HTMLResponse(_login_error_page(), status_code=403)
-
-        # Tạo session trong Redis (lưu id_token để logout RP-initiated)
-        session_id = await auth.create_session(
-            request.app.state.redis, email, sub, tokens.get("id_token", "")
-        )
-
-        secure = (request.headers.get("x-forwarded-proto", "").startswith("https")
-                  or request.url.scheme == "https")
+        token = await store.create_session(user.email)
         resp = RedirectResponse("/", status_code=303)
-        resp.set_cookie(
-            COOKIE, session_id,
-            httponly=True, samesite="lax", secure=secure,
-            max_age=SESSION_TTL, path="/",
-        )
+        _set_session_cookie(request, resp, token)
         resp.delete_cookie(STATE_COOKIE, path="/auth/callback")
-        log.info("OIDC login success: %s", email)
+        log.info("Google login: %s", user.email)
         return resp
 
     @app.get("/auth/me")
     async def auth_me(request: Request):
-        """Trả về thông tin user hiện tại từ session.
-
-        Route này nằm trong nhánh `/auth/*` mà `_gate` bỏ qua, nên không có
-        `request.state.session` — phải tự đọc session từ Redis qua cookie.
-        """
-        session_id = request.cookies.get(COOKIE)
-        session = await auth.get_session(request.app.state.redis, session_id)
-        if not session:
+        """Người dùng hiện tại (route trong nhánh /auth/* nên tự đọc phiên)."""
+        user = await _current_user(request)
+        if not user:
             return _err(401, "Not authenticated.", "unauthorized")
-        return {"email": session.get("email"), "sub": session.get("sub")}
+        return {**user.public(), "sub": user.email}
+
+    async def _logout(request: Request) -> None:
+        await _store(request).revoke_session(request.cookies.get(COOKIE))
 
     @app.get("/logout")
     async def logout(request: Request):
-        """Xóa session Redis, xóa cookie, redirect sang Zitadel end_session."""
-        session_id = request.cookies.get(COOKIE)
-        session = await auth.get_session(request.app.state.redis, session_id)
-        id_token = (session or {}).get("id_token") or None
-        await auth.revoke_session(request.app.state.redis, session_id)
-
-        public_url = (os.environ.get("VONIA_PUBLIC_URL") or "").rstrip("/")
-        end_session = (
-            auth.build_end_session_url(public_url, id_token)
-            if auth.enabled else "/"
-        )
-
-        resp = RedirectResponse(end_session, status_code=303)
+        await _logout(request)
+        resp = RedirectResponse("/auth/login", status_code=303)
         resp.delete_cookie(COOKIE, path="/")
         return resp
+
+    @app.post("/auth/logout")
+    async def logout_post(request: Request):
+        await _logout(request)
+        resp = Response(status_code=204)
+        resp.delete_cookie(COOKIE, path="/")
+        return resp
+
+    # ── Quản trị thành viên (chỉ Quản trị viên) ───────────────────────────────
+
+    def _admin(request: Request) -> Optional[User]:
+        user = getattr(request.state, "user", None)
+        return user if user is not None and user.is_admin else None
+
+    @app.get("/admin/users")
+    async def admin_list_users(request: Request, status: Optional[str] = Query(None)):
+        if not _admin(request):
+            return _err(403, "Chỉ Quản trị viên mới được thực hiện thao tác này.", "forbidden")
+        if status is not None and status not in STATUSES:
+            return _err(400, "Trạng thái không hợp lệ.", "invalid_request")
+        users = await _store(request).list(status)
+        users.sort(key=lambda u: (u.status != STATUS_PENDING, -u.created_at))
+        return {"users": [u.public() for u in users],
+                "pending": sum(1 for u in users if u.status == STATUS_PENDING)}
+
+    @app.post("/admin/users/{email}")
+    async def admin_user_action(request: Request, email: str, body: AdminAction):
+        actor = _admin(request)
+        if not actor:
+            return _err(403, "Chỉ Quản trị viên mới được thực hiện thao tác này.", "forbidden")
+        try:
+            user = await admin_update(_store(request), actor, email, body.action)
+        except AuthError as exc:
+            return _auth_err(exc)
+        log.info("Admin %s: %s → %s", actor.email, body.action, email)
+        return {"user": user.public() if user else None}
 
     # ── System ────────────────────────────────────────────────────────────────
     @app.get("/health")
@@ -681,6 +704,3 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
 
     return app
 
-
-# ── Session TTL (export cho các module khác nếu cần) ─────────────────────────
-SESSION_TTL = 7 * 24 * 3600

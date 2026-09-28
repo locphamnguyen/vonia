@@ -178,16 +178,31 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
     )
     sepay = client_from_env()
     bank = bank_config_from_env()
-    if sepay.configured:
-        log.info("SePay payment gateway enabled (env=%s, merchant=%s).",
-                 sepay.env, sepay.merchant_id)
+    # Thanh toán SePay đang TẮT mặc định (Vonia không bán gói nữa). Đặt
+    # VONIA_PAYMENTS=on để bật lại các route /payment/* (web: PAYMENTS_ENABLED).
+    payments_enabled = (os.environ.get("VONIA_PAYMENTS") or "off").strip().lower() in (
+        "on", "1", "true", "yes")
+
+    if not payments_enabled:
+        log.info("Payments disabled (VONIA_PAYMENTS=off) — /payment/* returns 404.")
+
+        @app.middleware("http")
+        async def _payments_off(request: Request, call_next):
+            path = request.url.path
+            if path == "/payment" or path.startswith("/payment/"):
+                return _err(404, "Not found.", "not_found")
+            return await call_next(request)
     else:
-        log.warning("SePay gateway NOT configured (merchant_id/secret_key).")
-    if bank.configured:
-        log.info("SePay VietQR/webhook enabled (bank=%s, acc=%s).",
-                 bank.bank_code, bank.bank_account)
-    else:
-        log.warning("SePay VietQR NOT configured.")
+        if sepay.configured:
+            log.info("SePay payment gateway enabled (env=%s, merchant=%s).",
+                     sepay.env, sepay.merchant_id)
+        else:
+            log.warning("SePay gateway NOT configured (merchant_id/secret_key).")
+        if bank.configured:
+            log.info("SePay VietQR/webhook enabled (bank=%s, acc=%s).",
+                     bank.bank_code, bank.bank_account)
+        else:
+            log.warning("SePay VietQR NOT configured.")
 
     def _customer_id(request: Request) -> str:
         session = getattr(request.state, "session", None)

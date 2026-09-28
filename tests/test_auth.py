@@ -494,3 +494,25 @@ def test_auth_off_disables_gate(monkeypatch, redis):
     app = create_app(MagicMock(), web_dir=None)
     app.state.redis = redis
     assert TestClient(app).get("/no-such-path").status_code == 404
+
+
+# ── Thanh toán SePay tắt mặc định ─────────────────────────────────────────────
+
+def test_payment_routes_hidden_by_default(monkeypatch, redis):
+    make_auth(monkeypatch, VONIA_API_KEYS="k1")
+    monkeypatch.delenv("VONIA_PAYMENTS", raising=False)
+    app = create_app(MagicMock(), web_dir=None)
+    app.state.redis = redis
+    c = TestClient(app)
+    for path in ("/payment/config", "/payment/plans"):
+        assert c.get(path, headers={"x-api-key": "k1"}).status_code == 404
+    assert c.post("/payment/webhook", content=b"{}").status_code == 404
+
+
+def test_payment_routes_back_when_enabled(monkeypatch, redis):
+    make_auth(monkeypatch, VONIA_API_KEYS="k1")
+    monkeypatch.setenv("VONIA_PAYMENTS", "on")
+    app = create_app(MagicMock(), web_dir=None)
+    app.state.redis = redis
+    r = TestClient(app).get("/payment/plans", headers={"x-api-key": "k1"})
+    assert r.status_code == 200

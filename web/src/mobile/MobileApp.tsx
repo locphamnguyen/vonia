@@ -14,6 +14,7 @@ import { splitText, type SplitMode } from '../lib/text'
 import { mergeWavBlobs, saveBlob } from '../lib/audio'
 import { buildCastVoices, type CastVoice } from '../lib/dialogue'
 import * as api from '../lib/api'
+import { PAYMENTS_ENABLED } from '../lib/features'
 
 /* File picker filter. iOS Files greys out anything not matched, and a bare
    `audio/*,video/*` can hide real audio files (e.g. voice-memo .m4a) — so we
@@ -522,6 +523,7 @@ function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang
   const loadSub = () => api.getSubscription().then(setSub).catch(() => {})
   useEffect(() => {
     api.getMe().then(setMe).catch(() => {})
+    if (!PAYMENTS_ENABLED) return
     api.getPlans().then(setPlans).catch(() => {})
     api.getPaymentConfig().then(setCfg).catch(() => {})
     loadSub()
@@ -545,7 +547,7 @@ function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang
         </div>
         {me ? (
           <div className="m-row" style={{ gap: 8 }}>
-            <button className="m-btn subtle" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}><Icon name="refresh" size={15} />{t(lang, 'refresh')}</button>
+            {PAYMENTS_ENABLED && <button className="m-btn subtle" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}><Icon name="refresh" size={15} />{t(lang, 'refresh')}</button>}
             <button className="m-btn" style={{ color: 'var(--bad)' }} onClick={() => { window.location.href = '/logout' }}><Icon name="login" size={15} />{t(lang, 'logout_device')}</button>
           </div>
         ) : null}
@@ -559,6 +561,7 @@ function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang
         )}
       </div>
 
+      {PAYMENTS_ENABLED && <>
       {/* Subscription status */}
       <div className="m-card" style={{ borderColor: active ? 'var(--accent-line)' : 'var(--border)' }}>
         {active ? (
@@ -596,6 +599,7 @@ function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang
           <span><Icon name="warn" size={13} style={{ color: 'var(--warn)', verticalAlign: '-2px', marginRight: 6 }} />{t(lang, 'no_refund')}</span>
         </div>
       </div>
+      </>}
 
       {/* Preferences */}
       <div className="m-list">
@@ -758,7 +762,7 @@ export function MobileApp({ lang, setLang, onMembers, pending }: { lang: Lang; s
         ))}
       </div>
 
-      {pay && <PaySheet lang={lang} onClose={() => setPay(false)} onPaid={() => store.refresh()} />}
+      {PAYMENTS_ENABLED && pay && <PaySheet lang={lang} onClose={() => setPay(false)} onPaid={() => store.refresh()} />}
     </div>
   )
 }

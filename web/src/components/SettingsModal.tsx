@@ -3,6 +3,7 @@ import { Icon, Btn, Select, Modal, useToast } from './ui'
 import { PaymentModal } from './PaymentModal'
 import { t, type Lang } from '../lib/i18n'
 import * as api from '../lib/api'
+import { PAYMENTS_ENABLED } from '../lib/features'
 
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN') + 'đ'
 const fmtDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '—')
@@ -18,6 +19,7 @@ function LicenseTab({ lang }: { lang: Lang }) {
   const loadSub = () => api.getSubscription().then(setSub).catch(() => {})
   useEffect(() => {
     api.getMe().then(setMe).catch(() => {})
+    if (!PAYMENTS_ENABLED) return
     api.getPaymentConfig().then(setCfg).catch(() => {})
     api.getPlans().then(setPlans).catch(() => {})
     loadSub()
@@ -41,13 +43,14 @@ function LicenseTab({ lang }: { lang: Lang }) {
         <div className="row gap10">
           {me ? (
             <>
-              <Btn variant="subtle" icon="refresh" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}>{t(lang, 'refresh')}</Btn>
+              {PAYMENTS_ENABLED && <Btn variant="subtle" icon="refresh" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}>{t(lang, 'refresh')}</Btn>}
               <Btn variant="danger" icon="login" onClick={() => { window.location.href = '/logout' }}>{t(lang, 'logout_device')}</Btn>
             </>
           ) : <Btn variant="danger" icon="login" onClick={() => { window.location.href = '/auth/login' }}>{t(lang, 'sign_in_google')}</Btn>}
         </div>
       </div>
 
+      {PAYMENTS_ENABLED && <>
       {active
         ? <div className="banner info"><Icon name="check" size={16} className="bico" /><span>{t(lang, 'plan_studio')} · {t(lang, 'sub_active')} — {t(lang, 'sub_expires')}: <strong>{fmtDate(sub!.expires_at)}</strong> ({t(lang, 'plan_days').replace('{n}', String(sub!.days_left))})</span></div>
         : <div className="banner warn"><Icon name="info" size={16} className="bico" /><span>{t(lang, 'sub_trial')}</span></div>}
@@ -76,6 +79,7 @@ function LicenseTab({ lang }: { lang: Lang }) {
           <span><Icon name="warn" size={13} style={{ verticalAlign: '-2px', marginRight: 6, color: 'var(--warn)' }} />{t(lang, 'no_refund')}</span>
         </div>
       </div>
+      </>}
     </div>
   )
 }
@@ -161,7 +165,7 @@ export function SettingsModal({ lang, setLang, onClose }: { lang: Lang; setLang:
         <button className="icon-btn" onClick={onClose}><Icon name="x" size={17} /></button>
       </div>
       <div className="modal-tabs">
-        {[['license', t(lang, 'tab_license')], ['general', t(lang, 'tab_general')], ['logs', t(lang, 'tab_logs')]].map(([id, label]) => (
+        {[['license', t(lang, PAYMENTS_ENABLED ? 'tab_license' : 'tab_account')], ['general', t(lang, 'tab_general')], ['logs', t(lang, 'tab_logs')]].map(([id, label]) => (
           <button key={id} className={'modal-tab' + (tab === id ? ' active' : '')} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>

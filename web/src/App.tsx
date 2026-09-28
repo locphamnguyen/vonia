@@ -3,6 +3,7 @@ import { AppCtx, ToastProvider, Icon, useToast } from './components/ui'
 import { t, type Lang } from './lib/i18n'
 import { VoicesProvider, useVoices } from './app/store'
 import * as api from './lib/api'
+import { PAYMENTS_ENABLED } from './lib/features'
 import { CloneTab } from './tabs/CloneTab'
 import { TtsTab } from './tabs/TtsTab'
 import { DialogueTab } from './tabs/DialogueTab'
@@ -54,9 +55,9 @@ function Sidebar({ lang, nav, setNav, onSettings, onMembers, pending, isAdmin, s
         <button className="nav-item" onClick={onSettings}>
           <Icon name="settings" size={18} className="ico" />{t(lang, 'nav_settings')}
         </button>
-        <button className="plan-btn" onClick={onSettings} title={t(lang, 'nav_settings')}>
+        {PAYMENTS_ENABLED && <button className="plan-btn" onClick={onSettings} title={t(lang, 'nav_settings')}>
           <Icon name="bolt" size={14} />{active ? t(lang, 'plan_studio') : t(lang, 'plan_trial')}
-        </button>
+        </button>}
         {userEmail && (
           <div className="user-row">
             <span className="user-email" title={userEmail}>{userEmail}</span>
@@ -186,7 +187,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('vonia.onboarded') !== '1')
   const [starred, setStarred] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem('vonia.starred') || '[]')))
   const [sub, setSub] = useState<api.Subscription | null>(null)
-  const refreshSub = useCallback(() => { api.getSubscription().then(setSub).catch(() => {}) }, [])
+  const refreshSub = useCallback(() => { if (PAYMENTS_ENABLED) api.getSubscription().then(setSub).catch(() => {}) }, [])
   useEffect(() => { refreshSub() }, [refreshSub])
   const [me, setMe] = useState<api.MeInfo | null>(null)
   useEffect(() => { api.getMe().then(setMe).catch(() => {}) }, [])
@@ -210,7 +211,7 @@ export default function App() {
     <AppCtx.Provider value={{ lang, theme }}>
       <ToastProvider>
         <VoicesProvider>
-          <PaymentReturn lang={lang} onPaid={refreshSub} />
+          {PAYMENTS_ENABLED && <PaymentReturn lang={lang} onPaid={refreshSub} />}
           {isMobile ? (
             <MobileApp lang={lang} setLang={setLang} onMembers={me?.is_admin ? () => setShowMembers(true) : undefined} pending={pending} />
           ) : (

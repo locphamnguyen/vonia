@@ -1,5 +1,9 @@
 # Tích hợp thanh toán SePay (Vonia)
 
+> ⚠️ **Đang tắt (28/09/2026).** Vonia không bán gói nữa: giao diện ẩn toàn bộ phần thanh toán
+> (`PAYMENTS_ENABLED = false` trong `web/src/lib/features.ts`) và backend trả 404 cho `/payment/*`
+> trừ khi đặt `VONIA_PAYMENTS=on`. Tài liệu dưới đây giữ lại để bật lại khi cần.
+
 Tài liệu tích hợp **SePay** cho Vonia Voice Studio — bán gói thuê bao (Studio) qua **VietQR quét trong app** (luồng chính) và **cổng thanh toán redirect** (dự phòng, cho thẻ/NAPAS).
 
 Tài liệu gốc của SePay: <https://developer.sepay.vn/vi>

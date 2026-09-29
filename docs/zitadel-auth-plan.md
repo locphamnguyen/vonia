@@ -1,5 +1,11 @@
 # Plan: Zitadel OIDC Auth cho Vonia Voice Studio
 
+> ⚠️ **Đã thay thế (28/09/2026).** Vonia không còn dùng Zitadel. Đăng nhập nay là
+> Google OAuth trực tiếp + email/mật khẩu, người đăng ký đầu tiên là Quản trị viên,
+> người sau chờ duyệt — xem [dang-ky-dang-nhap.md](dang-ky-dang-nhap.md). Tài liệu dưới
+> đây giữ lại làm lịch sử.
+
+
 **Mục tiêu:** Thay thế login username/password bằng Zitadel OIDC (Google IDP).  
 **Domain:** `auth.locnguyendata.com` (self-hosted) · App: `vonia.locnguyendata.com`
 

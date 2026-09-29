@@ -14,6 +14,7 @@ import { splitText, type SplitMode } from '../lib/text'
 import { mergeWavBlobs, saveBlob } from '../lib/audio'
 import { buildCastVoices, type CastVoice } from '../lib/dialogue'
 import * as api from '../lib/api'
+import { PAYMENTS_ENABLED } from '../lib/features'
 
 /* File picker filter. iOS Files greys out anything not matched, and a bare
    `audio/*,video/*` can hide real audio files (e.g. voice-memo .m4a) — so we
@@ -513,7 +514,7 @@ function SttScreen({ lang }: { lang: Lang }) {
 const fmtVnd = (n: number) => n.toLocaleString('vi-VN') + 'đ'
 const fmtDate = (iso: string | null) => (iso ? iso.slice(0, 10) : '—')
 
-function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lang) => void; onPay: () => void }) {
+function SettingsScreen({ lang, setLang, onPay, onMembers, pending = 0 }: { lang: Lang; setLang: (l: Lang) => void; onPay: () => void; onMembers?: () => void; pending?: number }) {
   const toast = useToast()
   const [me, setMe] = useState<api.MeInfo | null>(null)
   const [sub, setSub] = useState<api.Subscription | null>(null)
@@ -522,6 +523,7 @@ function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lan
   const loadSub = () => api.getSubscription().then(setSub).catch(() => {})
   useEffect(() => {
     api.getMe().then(setMe).catch(() => {})
+    if (!PAYMENTS_ENABLED) return
     api.getPlans().then(setPlans).catch(() => {})
     api.getPaymentConfig().then(setCfg).catch(() => {})
     loadSub()
@@ -545,14 +547,21 @@ function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lan
         </div>
         {me ? (
           <div className="m-row" style={{ gap: 8 }}>
-            <button className="m-btn subtle" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}><Icon name="refresh" size={15} />{t(lang, 'refresh')}</button>
+            {PAYMENTS_ENABLED && <button className="m-btn subtle" onClick={() => { loadSub(); toast({ kind: 'info', title: t(lang, 'refresh') }) }}><Icon name="refresh" size={15} />{t(lang, 'refresh')}</button>}
             <button className="m-btn" style={{ color: 'var(--bad)' }} onClick={() => { window.location.href = '/logout' }}><Icon name="login" size={15} />{t(lang, 'logout_device')}</button>
           </div>
-        ) : (
+        ) : null}
+        {me && onMembers ? (
+          <button className="m-btn" style={{ marginTop: 8 }} onClick={onMembers}>
+            <Icon name="users" size={15} />{t(lang, 'nav_members')}{pending > 0 ? ` (${pending})` : ''}
+          </button>
+        ) : null}
+        {me ? null : (
           <button className="m-btn primary" onClick={() => { window.location.href = '/auth/login' }}><Icon name="login" size={15} />{t(lang, 'sign_in_google')}</button>
         )}
       </div>
 
+      {PAYMENTS_ENABLED && <>
       {/* Subscription status */}
       <div className="m-card" style={{ borderColor: active ? 'var(--accent-line)' : 'var(--border)' }}>
         {active ? (
@@ -590,6 +599,7 @@ function SettingsScreen({ lang, setLang, onPay }: { lang: Lang; setLang: (l: Lan
           <span><Icon name="warn" size={13} style={{ color: 'var(--warn)', verticalAlign: '-2px', marginRight: 6 }} />{t(lang, 'no_refund')}</span>
         </div>
       </div>
+      </>}
 
       {/* Preferences */}
       <div className="m-list">
@@ -706,7 +716,7 @@ function Pane({ active, children }: { active: boolean; children: React.ReactNode
 }
 
 /* ---------- Shell ---------- */
-export function MobileApp({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+export function MobileApp({ lang, setLang, onMembers, pending }: { lang: Lang; setLang: (l: Lang) => void; onMembers?: () => void; pending?: number }) {
   const [tab, setTab] = useState('clone')
   const [pay, setPay] = useState(false)
   const store = useVoices()
@@ -742,7 +752,7 @@ export function MobileApp({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
       {visited.has('dialogue') && <Pane active={tab === 'dialogue'}><DialogueScreen lang={lang} /></Pane>}
       {visited.has('tts') && <Pane active={tab === 'tts'}><TtsScreen lang={lang} /></Pane>}
       {visited.has('stt') && <Pane active={tab === 'stt'}><SttScreen lang={lang} /></Pane>}
-      {visited.has('settings') && <Pane active={tab === 'settings'}><SettingsScreen lang={lang} setLang={setLang} onPay={() => setPay(true)} /></Pane>}
+      {visited.has('settings') && <Pane active={tab === 'settings'}><SettingsScreen lang={lang} setLang={setLang} onPay={() => setPay(true)} onMembers={onMembers} pending={pending} /></Pane>}
 
       <div className="m-nav">
         {navItems.map(([id, icon, label]) => (
@@ -752,7 +762,7 @@ export function MobileApp({ lang, setLang }: { lang: Lang; setLang: (l: Lang) =>
         ))}
       </div>
 
-      {pay && <PaySheet lang={lang} onClose={() => setPay(false)} onPaid={() => store.refresh()} />}
+      {PAYMENTS_ENABLED && pay && <PaySheet lang={lang} onClose={() => setPay(false)} onPaid={() => store.refresh()} />}
     </div>
   )
 }

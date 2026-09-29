@@ -44,17 +44,44 @@ async function asError(res: Response): Promise<never> {
   let msg = `HTTP ${res.status}`
   try {
     const j = await res.json()
+    if (res.status === 403 && j?.error?.type === 'ACCOUNT_PENDING') {
+      window.location.href = '/auth/pending'
+      return new Promise(() => {}) as never
+    }
     msg = j?.error?.message || j?.detail || msg
   } catch { /* ignore */ }
   throw new Error(msg)
 }
 
-export interface MeInfo { email: string; sub: string }
+export type UserStatus = 'active' | 'pending' | 'disabled'
+export interface MeInfo {
+  email: string; sub: string; full_name: string; is_admin: boolean; status: UserStatus
+}
+export interface MemberRecord {
+  email: string; full_name: string; status: UserStatus; is_admin: boolean
+  providers: string[]; email_verified: boolean; has_password: boolean
+  created_at: number; approved_by: string; approved_at: number
+}
+export type MemberAction = 'approve' | 'disable' | 'make_admin' | 'revoke_admin' | 'delete'
 
 export async function getMe(): Promise<MeInfo> {
   const res = await fetch(`${API_BASE}/auth/me`)
   if (!res.ok) await asError(res)
   return res.json()
+}
+
+export async function listMembers(): Promise<{ users: MemberRecord[]; pending: number }> {
+  const res = await fetch(`${API_BASE}/admin/users`)
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function memberAction(email: string, action: MemberAction): Promise<MemberRecord | null> {
+  const res = await fetch(`${API_BASE}/admin/users/${encodeURIComponent(email)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+  })
+  if (!res.ok) await asError(res)
+  return (await res.json()).user
 }
 
 export async function health(): Promise<any> {

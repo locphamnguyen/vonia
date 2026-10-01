@@ -39,3 +39,6 @@ examples/exp*
 web/node_modules/
 web/dist/
 .gstack/
+
+# Tài liệu khách hàng dạng PDF (nặng) — không đưa lên repo
+omnivoice/DR LOCKTIN/*.pdf

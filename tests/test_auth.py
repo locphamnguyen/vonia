@@ -489,6 +489,69 @@ def test_api_key_bypasses_gate_but_not_admin(monkeypatch, redis):
     assert c.get("/admin/users", headers={"x-api-key": "k1"}).status_code == 403
 
 
+def test_user_api_key_lifecycle(client):
+    _register(client, "boss@x.com")
+    boss_cookie = client.cookies.get("vonia_session")
+
+    r = client.post("/account/api-keys", json={"name": "n8n"})
+    assert r.status_code == 200
+    key, rec = r.json()["key"], r.json()["record"]
+    assert key.startswith(A.API_KEY_PREFIX) and rec["name"] == "n8n"
+    listed = client.get("/account/api-keys").json()["keys"]
+    assert [k["id"] for k in listed] == [rec["id"]]
+    assert key not in str(listed)                     # chỉ lưu băm, không trả lại key
+
+    # Gọi được API bằng key (X-API-Key hoặc Bearer), không cần cookie.
+    client.cookies.clear()
+    assert client.get("/no-such-path", headers={"x-api-key": key}).status_code == 404
+    assert client.get("/no-such-path",
+                      headers={"authorization": f"Bearer {key}"}).status_code == 404
+    assert client.get("/no-such-path", headers={"x-api-key": key + "x"}).status_code == 401
+    # Key không quản trị được và không tự tạo được key mới.
+    assert client.get("/admin/users", headers={"x-api-key": key}).status_code == 403
+    assert client.post("/account/api-keys", json={},
+                       headers={"x-api-key": key}).status_code == 403
+
+    # Thu hồi → key ngừng chạy ngay.
+    client.cookies.set("vonia_session", boss_cookie)
+    assert client.delete(f"/account/api-keys/{rec['id']}").status_code == 204
+    client.cookies.clear()
+    assert client.get("/no-such-path", headers={"x-api-key": key}).status_code == 401
+
+
+def test_user_api_key_stops_when_owner_disabled(client):
+    _register(client, "boss@x.com")
+    boss_cookie = client.cookies.get("vonia_session")
+    client.cookies.clear()
+    _register(client, "mem@x.com")
+    client.cookies.set("vonia_session", boss_cookie)
+    client.post("/admin/users/mem@x.com", json={"action": "approve"})
+    client.cookies.clear()
+    client.post("/auth/login", json={"email": "mem@x.com", "password": GOOD_PW})
+    key = client.post("/account/api-keys", json={"name": "k"}).json()["key"]
+    client.cookies.clear()
+    assert client.get("/no-such-path", headers={"x-api-key": key}).status_code == 404
+
+    client.cookies.set("vonia_session", boss_cookie)
+    client.post("/admin/users/mem@x.com", json={"action": "disable"})
+    client.cookies.clear()
+    assert client.get("/no-such-path", headers={"x-api-key": key}).status_code == 401
+
+
+def test_user_api_keys_are_per_owner(client):
+    _register(client, "boss@x.com")
+    rec = client.post("/account/api-keys", json={"name": "a"}).json()["record"]
+    boss_cookie = client.cookies.get("vonia_session")
+    client.cookies.clear()
+    _register(client, "mem@x.com")
+    client.cookies.set("vonia_session", boss_cookie)
+    client.post("/admin/users/mem@x.com", json={"action": "approve"})
+    client.cookies.clear()
+    client.post("/auth/login", json={"email": "mem@x.com", "password": GOOD_PW})
+    assert client.get("/account/api-keys").json()["keys"] == []
+    assert client.delete(f"/account/api-keys/{rec['id']}").status_code == 404
+
+
 def test_auth_off_disables_gate(monkeypatch, redis):
     make_auth(monkeypatch, VONIA_AUTH="off")
     app = create_app(MagicMock(), web_dir=None)

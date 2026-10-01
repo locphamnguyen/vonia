@@ -289,3 +289,27 @@ export async function stt(file: File, model: string, language?: string): Promise
   if (!res.ok) await asError(res)
   return res.json()
 }
+
+// ── API key cho công cụ ngoài (key nguyên văn chỉ trả về MỘT lần lúc tạo) ──
+export interface ApiKeyRecord {
+  id: string; name: string; hint: string; owner: string; created_at: number; last_used_at: number
+}
+
+export async function listApiKeys(): Promise<ApiKeyRecord[]> {
+  const res = await fetch(`${API_BASE}/account/api-keys`)
+  if (!res.ok) await asError(res)
+  return (await res.json()).keys
+}
+
+export async function createApiKey(name: string): Promise<{ key: string; record: ApiKeyRecord }> {
+  const res = await fetch(`${API_BASE}/account/api-keys`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+  })
+  if (!res.ok) await asError(res)
+  return res.json()
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/account/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (!res.ok) await asError(res)
+}

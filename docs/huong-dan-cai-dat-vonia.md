@@ -79,6 +79,25 @@ Tài liệu này hướng dẫn **cài đặt từ đầu**, **chạy nền vĩn
 
 ## 3. Cài đặt từ đầu
 
+### 3.0. Cài nhanh bằng script (Windows / macOS / Linux)
+
+Một lệnh làm toàn bộ mục 3.2 → 3.6: tự cài `uv` (và `bun` nếu máy chưa có bun lẫn Node.js), cài thư viện Python 3.12 theo `uv.lock`, build giao diện web vào `omnivoice/server/webdist`, tạo `.env` từ `.env.example` kèm `VONIA_SESSION_SECRET` ngẫu nhiên, rồi kiểm tra torch nhận thiết bị nào.
+
+```bash
+./build.sh                     # macOS / Linux
+.\build.ps1                    # Windows PowerShell
+build.cmd                      # Windows cmd / double-click
+```
+
+| Tuỳ chọn | Ý nghĩa |
+|---|---|
+| `--torch auto\|cuda\|cpu` | Bản torch cho Linux/Windows. `auto` (mặc định) = CUDA 12.8 nếu có `nvidia-smi`, ngược lại CPU. macOS luôn dùng MPS/CPU. |
+| `--download-model` | Tải sẵn model từ HuggingFace. |
+| `--skip-python` / `--skip-web` | Bỏ qua một bước. |
+| `--dev` | Cài thêm extra `dev` (pytest…). |
+
+Logic nằm ở [scripts/build.py](../scripts/build.py); ba file `build.*` chỉ bootstrap công cụ. Sau khi build, chạy server bằng file trong `.venv` (không qua `uv run`, để giữ bản torch đã chọn): `.venv/bin/omnivoice-serve --host 127.0.0.1 --port 8002` (Windows: `.venv\Scripts\omnivoice-serve.exe`).
+
 > Các lệnh dưới giả định mã nguồn đặt tại `/root/0project/OmniVoice`. Thay đường dẫn nếu khác.
 
 ### 3.1. Lấy mã nguồn

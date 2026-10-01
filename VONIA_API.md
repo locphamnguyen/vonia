@@ -12,8 +12,12 @@ Text-to-speech đa ngôn ngữ. Chọn giọng theo ngôn ngữ:
   - `X-API-Key: <API_KEY>`
   - `Authorization: Bearer <API_KEY>`  ← chuẩn OpenAI, dùng được cho OpenAI SDK
 - **API key:** `<API_KEY>` — key thật KHÔNG ghi trong tài liệu này (repo có remote
-  upstream công khai). Server đọc danh sách key hợp lệ từ biến môi trường
-  `VONIA_API_KEYS` (phân tách bằng dấu phẩy); xin key qua kênh riêng.
+  upstream công khai). Có hai loại key:
+  - **Key cá nhân (khuyến nghị):** đăng nhập giao diện → mục **Webhook** → thẻ **API key**
+    → đặt tên rồi bấm **Tạo API key**. Key dạng `vonia_…`, chỉ hiện một lần lúc tạo;
+    thu hồi được bất cứ lúc nào, và tự ngừng chạy khi tài khoản chủ key bị khoá.
+    Mỗi tài khoản tối đa 20 key.
+  - **Key cố định của server:** biến môi trường `VONIA_API_KEYS` (phân tách bằng dấu phẩy).
 
 Không có key hoặc key sai → HTTP 401 `{"error":{"message":"Authentication required."}}`.
 

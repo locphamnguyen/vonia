@@ -22,6 +22,8 @@ Khoá Redis:
   vonia:bootstrap_admin     email của Quản trị viên đầu tiên (SET NX — chống đua)
   vonia:sess:{sha256}       JSON {email, seen}  TTL 30 ngày, gia hạn mỗi giờ
   vonia:loginfail:{email}   bộ đếm sai mật khẩu, TTL 15 phút
+  vonia:apikey:{sha256}     JSON {id, name, hint, owner, created_at, last_used_at}
+  vonia:apikeys:{email}     SET sha256 các API key của người dùng
 """
 from __future__ import annotations
 
@@ -73,6 +75,7 @@ ERR_TOO_MANY = "TOO_MANY_ATTEMPTS"
 ERR_GOOGLE_DENIED = "GOOGLE_DENIED"
 ERR_LOGIN_INVALID = "LOGIN_REQUEST_INVALID"
 ERR_INVALID = "INVALID"
+ERR_API_KEY_LIMIT = "API_KEY_LIMIT"
 
 # Mã lỗi → giá trị `?loi=` trên trang đăng nhập. Mã lạ → "he_thong".
 REASONS = {
@@ -267,8 +270,28 @@ def _sess_key(token: str) -> str:
     return "vonia:sess:" + hashlib.sha256(token.encode()).hexdigest()
 
 
+def api_key_from_headers(x_api_key: Optional[str], authorization: Optional[str]) -> str:
+    """Lấy API key từ `X-API-Key: <key>` hoặc `Authorization: Bearer <key>`."""
+    candidate = (x_api_key or "").strip()
+    if not candidate and authorization:
+        parts = authorization.strip().split(None, 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            candidate = parts[1].strip()
+    return candidate
+
+
+def _apikey_key(digest: str) -> str:
+    return f"vonia:apikey:{digest}"
+
+
+def _apikeys_index(email: str) -> str:
+    return f"vonia:apikeys:{email}"
+
+
 USERS_INDEX = "vonia:users"
 BOOTSTRAP_KEY = "vonia:bootstrap_admin"
+API_KEY_PREFIX = "vonia_"
+API_KEYS_PER_USER = 20
 
 
 class UserStore:
@@ -400,6 +423,62 @@ class UserStore:
         if token:
             await self.r.delete(_sess_key(token))
 
+    # ── API key do người dùng tự tạo ────────────────────────────────────────
+
+    async def create_api_key(self, owner: User, name: str) -> tuple[str, dict]:
+        """Tạo key mới cho `owner`. Trả (key nguyên văn — chỉ hiện MỘT lần, bản ghi)."""
+        ids = await self.r.smembers(_apikeys_index(owner.email))
+        if len(ids) >= API_KEYS_PER_USER:
+            raise AuthError(400, ERR_API_KEY_LIMIT,
+                            f"Mỗi tài khoản tối đa {API_KEYS_PER_USER} API key.")
+        raw = API_KEY_PREFIX + secrets.token_urlsafe(32)
+        digest = hashlib.sha256(raw.encode()).hexdigest()
+        record = {
+            "id": digest[:12],
+            "name": (name or "").strip()[:60] or "API key",
+            "hint": raw[:len(API_KEY_PREFIX) + 4] + "…" + raw[-4:],
+            "owner": owner.email,
+            "created_at": self.now(),
+            "last_used_at": 0.0,
+        }
+        await self.r.set(_apikey_key(digest), json.dumps(record, ensure_ascii=False))
+        await self.r.sadd(_apikeys_index(owner.email), digest)
+        return raw, record
+
+    async def list_api_keys(self, owner_email: str) -> list[dict]:
+        keys = []
+        for digest in await self.r.smembers(_apikeys_index(owner_email)):
+            raw = await self.r.get(_apikey_key(digest))
+            if raw:
+                keys.append(json.loads(raw))
+        return sorted(keys, key=lambda k: -k["created_at"])
+
+    async def revoke_api_key(self, owner_email: str, key_id: str) -> bool:
+        for digest in await self.r.smembers(_apikeys_index(owner_email)):
+            if digest[:12] == key_id:
+                await self.r.delete(_apikey_key(digest))
+                await self.r.srem(_apikeys_index(owner_email), digest)
+                return True
+        return False
+
+    async def resolve_api_key(self, raw_key: str) -> Optional[User]:
+        """Đổi key lấy chủ sở hữu còn kích hoạt. Khoá tài khoản = key ngừng chạy ngay."""
+        if not raw_key.startswith(API_KEY_PREFIX):
+            return None
+        key = _apikey_key(hashlib.sha256(raw_key.encode()).hexdigest())
+        raw = await self.r.get(key)
+        if not raw:
+            return None
+        record = json.loads(raw)
+        user = await self.get(record.get("owner", ""))
+        if user is None or not user.active:
+            return None
+        now = self.now()
+        if now - float(record.get("last_used_at") or 0) >= SESSION_REFRESH:
+            record["last_used_at"] = now
+            await self.r.set(key, json.dumps(record, ensure_ascii=False))
+        return user
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Google OAuth 2.0 (Authorization Code + PKCE) — gọi thẳng Google
@@ -445,15 +524,9 @@ class Auth:
         return UserStore(redis, self.admin_emails)
 
     def check_api_key(self, x_api_key: Optional[str], authorization: Optional[str]) -> bool:
-        """True nếu request mang một API key hợp lệ (X-API-Key hoặc Bearer)."""
-        if not self.api_keys:
-            return False
-        candidate = (x_api_key or "").strip()
-        if not candidate and authorization:
-            parts = authorization.strip().split(None, 1)
-            if len(parts) == 2 and parts[0].lower() == "bearer":
-                candidate = parts[1].strip()
-        if not candidate:
+        """True nếu request mang một API key cố định (VONIA_API_KEYS) hợp lệ."""
+        candidate = api_key_from_headers(x_api_key, authorization)
+        if not self.api_keys or not candidate:
             return False
         return any(hmac.compare_digest(candidate, k) for k in self.api_keys)
 

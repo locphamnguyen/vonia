@@ -17,6 +17,8 @@ if "imp" not in sys.modules:
 
 from vinorm import TTSnorm  # noqa: E402
 
+from omnivoice.server.norm_vi_numbers import normalize_numbers  # noqa: E402
+
 # --- từ điển phát âm: acronym / thuật ngữ ngành (vinorm không biết) ---
 # áp dụng TRƯỚC vinorm. Key so khớp nguyên từ (word boundary), không phân biệt hoa thường.
 PRONUNCIATION = {
@@ -112,10 +114,32 @@ def preclean(text):
     text = re.sub(r'\s*%', ' phần trăm', text)
     return text
 
+_vinorm_ok = True
+
+
+def _vinorm(text):
+    """vinorm chỉ kèm binary Linux x86-64; trên macOS/Windows/ARM nó không chạy được.
+    Khi đó dùng bộ đọc số Python thuần (norm_vi_numbers) thay thế."""
+    global _vinorm_ok
+    if _vinorm_ok:
+        try:
+            return TTSnorm(text, punc=True, unknown=True, lower=False, rule=True)
+        except OSError as e:
+            _vinorm_ok = False
+            import logging
+            logging.getLogger(__name__).warning(
+                "vinorm không chạy được trên máy này (%s) — dùng bộ đọc số Python.", e)
+    # Mặc định để nguyên số cho model tự đọc (model đọc số tốt). VONIA_VI_NUMBERS=on
+    # để bật bộ đọc số Python thay thế.
+    if os.environ.get("VONIA_VI_NUMBERS", "off").strip().lower() in ("on", "1", "true", "yes"):
+        return normalize_numbers(text)
+    return text
+
+
 def normalize(text):
     text = preclean(text)
     text = _apply_dict(text)
-    out = TTSnorm(text, punc=True, unknown=True, lower=False, rule=True)
+    out = _vinorm(text)
     out = re.sub(r'\s*\.\s*(?:\.\s*)+', '. ', out)  # gộp dấu chấm đôi
     return " ".join(out.split()).strip()
 

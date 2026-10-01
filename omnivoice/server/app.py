@@ -27,7 +27,7 @@ from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
 from .auth import (
     BOOTSTRAP_KEY, COOKIE, ERR_GOOGLE_DENIED, ERR_LOGIN_INVALID, ERR_PENDING,
     PUBLIC_PATHS, REASONS, SESSION_TTL, STATE_COOKIE, STATUS_PENDING, STATUSES,
-    Auth, AuthError, User, UserStore, admin_update,
+    Auth, AuthError, User, UserStore, admin_update, api_key_from_headers,
 )
 from .auth_pages import login_page, pending_page, register_page
 from .billing import BillingStore, OrderRecord, new_invoice_number, new_payment_code
@@ -70,6 +70,10 @@ class RegisterBody(BaseModel):
 
 class AdminAction(BaseModel):
     action: str
+
+
+class ApiKeyCreate(BaseModel):
+    name: str = ""
 
 
 def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
@@ -143,13 +147,20 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/auth/"):
             return await call_next(request)
 
-        # API key (server-to-server) — bỏ qua đăng nhập nếu key hợp lệ.
-        if auth.check_api_key(
-            request.headers.get("x-api-key"),
-            request.headers.get("authorization"),
-        ):
+        # API key (server-to-server) — bỏ qua đăng nhập nếu key hợp lệ. Không gán
+        # request.state.user: key gọi được API tạo giọng, nhưng không quản trị
+        # và không tạo được key mới.
+        x_api_key = request.headers.get("x-api-key")
+        authorization = request.headers.get("authorization")
+        if auth.check_api_key(x_api_key, authorization):
             request.state.session = {"email": "api-key", "sub": "api-key"}
             return await call_next(request)
+        candidate = api_key_from_headers(x_api_key, authorization)
+        if candidate:
+            owner = await _store(request).resolve_api_key(candidate)
+            if owner is not None:
+                request.state.session = {"email": owner.email, "sub": owner.email}
+                return await call_next(request)
 
         resolved = await _store(request).resolve_session(request.cookies.get(COOKIE))
         if resolved and resolved[1]:
@@ -422,6 +433,40 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
             return _auth_err(exc)
         log.info("Admin %s: %s → %s", actor.email, body.action, email)
         return {"user": user.public() if user else None}
+
+    # ── API key của người dùng (chỉ quản lý được khi đăng nhập bằng phiên) ───────
+
+    def _session_user(request: Request) -> Optional[User]:
+        return getattr(request.state, "user", None)
+
+    @app.get("/account/api-keys")
+    async def list_api_keys(request: Request):
+        user = _session_user(request)
+        if not user:
+            return _err(403, "Cần đăng nhập để quản lý API key.", "forbidden")
+        return {"keys": await _store(request).list_api_keys(user.email)}
+
+    @app.post("/account/api-keys")
+    async def create_api_key(request: Request, body: ApiKeyCreate):
+        user = _session_user(request)
+        if not user:
+            return _err(403, "Cần đăng nhập để quản lý API key.", "forbidden")
+        try:
+            raw, record = await _store(request).create_api_key(user, body.name)
+        except AuthError as exc:
+            return _auth_err(exc)
+        log.info("API key %s created by %s", record["id"], user.email)
+        return {"key": raw, "record": record}
+
+    @app.delete("/account/api-keys/{key_id}")
+    async def revoke_api_key(request: Request, key_id: str):
+        user = _session_user(request)
+        if not user:
+            return _err(403, "Cần đăng nhập để quản lý API key.", "forbidden")
+        if not await _store(request).revoke_api_key(user.email, key_id):
+            return _err(404, "Không tìm thấy API key.", "not_found")
+        log.info("API key %s revoked by %s", key_id, user.email)
+        return Response(status_code=204)
 
     # ── System ────────────────────────────────────────────────────────────────
     @app.get("/health")

@@ -247,7 +247,10 @@ class Engine:
         if cached is not None:
             return cached
         rec = self.voices.get_record(voice_id)  # raises VoiceNotFoundError
-        prompt = self._build_prompt(rec.audio_path, rec.ref_text)
+        prompt = self.voices.load_saved_prompt(voice_id)
+        if prompt is None:
+            prompt = self._build_prompt(rec.audio_path, rec.ref_text)
+            self.voices.save_prompt(voice_id, prompt)
         self.voices.set_cached_prompt(voice_id, prompt)
         return prompt
 
@@ -262,6 +265,7 @@ class Engine:
         def _job():
             prompt = self._build_prompt(path, ref_text)
             rec = self.voices.put_record(name, path, ref_text, overwrite=True)
+            self.voices.save_prompt(voice_id, prompt)
             self.voices.set_cached_prompt(voice_id, prompt)
             return rec
 

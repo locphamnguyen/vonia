@@ -1,0 +1,11 @@
+{
+  "voices": [
+    {
+      "id": "nhatnam",
+      "name": "nhatnam",
+      "ref_text": "1. Dùng Notebook LM để nuốt toàn bộ tài liệu đầu vào. Upload PDF, link web, slide file nghiên cứu, transcript video. Sau đó yêu cầu tóm tắt toàn bộ nội dung theo từng chủ đề chính. Giữ lại insight quan trọng nhất. Loại bỏ phần dư thừa.",
+      "audio": "nhatnam/ref.wav",
+      "prompt": "nhatnam/prompt.pt"
+    }
+  ]
+}

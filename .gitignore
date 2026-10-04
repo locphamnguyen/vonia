@@ -42,3 +42,15 @@ web/dist/
 
 # Tài liệu khách hàng dạng PDF (nặng) — không đưa lên repo
 omnivoice/DR LOCKTIN/*.pdf
+
+# Thành phẩm video, gói skill, giọng mẫu — chỉ giữ trên máy, không đưa lên repo
+omnivoice/video-output/
+omnivoice/song-promo-video/
+omnivoice/giong-clone/
+omnivoice/skill/
+
+# Giọng mẫu đi kèm source (tự thêm vào "Giọng của bạn" khi chạy lần đầu)
+!omnivoice/server/bundled_voices/**/*.wav
+
+# Tài liệu nội bộ về Zitadel — không đưa lên repo
+docs/huong-dan-su-dung-zitadel/

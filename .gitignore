@@ -51,3 +51,6 @@ omnivoice/skill/
 
 # Giọng mẫu đi kèm source (tự thêm vào "Giọng của bạn" khi chạy lần đầu)
 !omnivoice/server/bundled_voices/**/*.wav
+
+# Tài liệu nội bộ về Zitadel — không đưa lên repo
+docs/huong-dan-su-dung-zitadel/

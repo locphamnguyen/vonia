@@ -1,411 +1,290 @@
-# OmniVoice 🌍
+# Vonia Voice Studio 🎙️
+
+**Phần mềm chuyển văn bản thành giọng nói (TTS) chạy ngay trên máy của bạn**: nhân bản giọng, đọc văn bản, hội thoại nhiều giọng, giọng nói sang văn bản và API cho lập trình viên. Có giao diện web tiếng Việt và cài được trên **Windows, macOS (MacBook chip M) và Linux**.
+
+> **Model giọng nói: OmniVoice (default, powered by [k2-fsa/OmniVoice](https://github.com/k2-fsa/OmniVoice))**
+> Vonia là giao diện và máy chủ API xây trên OmniVoice — model TTS zero-shot đa ngôn ngữ (hơn 600 ngôn ngữ) của nhóm k2-fsa. Phần lõi model trong thư mục `omnivoice/` được giữ đồng bộ với bản gốc (hiện tại **0.2.1**).
 
 <p align="center">
-  <img width="200" height="200" alt="OmniVoice" src="https://zhu-han.github.io/omnivoice/pics/omnivoice.jpg" />
+  <a href="https://huggingface.co/k2-fsa/OmniVoice"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-OmniVoice-FFD21E" alt="Hugging Face Model"></a>
+  &nbsp;
+  <a href="https://arxiv.org/abs/2604.00688"><img src="https://img.shields.io/badge/arXiv-OmniVoice-B31B1B.svg" alt="Paper"></a>
+  &nbsp;
+  <a href="https://github.com/k2-fsa/OmniVoice"><img src="https://img.shields.io/badge/GitHub-k2--fsa%2FOmniVoice-black?logo=github" alt="OmniVoice gốc"></a>
 </p>
 
-<p align="center">
-  <a href="https://huggingface.co/k2-fsa/OmniVoice"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-FFD21E" alt="Hugging Face Model"></a>
-  &nbsp;
-  <a href="https://huggingface.co/spaces/k2-fsa/OmniVoice"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue" alt="Hugging Face Space"></a>
-  &nbsp;
-  <a href="https://arxiv.org/abs/2604.00688"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B.svg"></a>
-  &nbsp;
-  <a href="https://zhu-han.github.io/omnivoice"><img src="https://img.shields.io/badge/GitHub.io-Demo_Page-blue?logo=GitHub&style=flat-square"></a>
-  &nbsp;
-  <a href="https://colab.research.google.com/github/k2-fsa/OmniVoice/blob/master/docs/OmniVoice.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-</p>
-
-OmniVoice is a state-of-the-art massively multilingual zero-shot text-to-speech (TTS) model supporting over 600 languages. Built on a novel diffusion language model-style architecture, it generates high-quality speech with superior inference speed, supporting voice cloning and voice design.
-
-**Contents**: [Key Features](#key-features) | [Installation](#installation) | [Quick Start](#quick-start) | [Python API](#python-api) | [Command-Line Tools](#command-line-tools) | [Training & Evaluation](#training--evaluation) | [Discussion](#discussion--communication) | [Citation](#citation)
-
-## Key Features
-
-- **600+ Languages Supported**: The broadest language coverage among zero-shot TTS models ([full list](docs/languages.md)).
-- **Voice Cloning**: State-of-the-art voice cloning quality.
-- **Voice Design**: Control voices via assigned speaker attributes (gender, age, pitch, dialect/accent, whisper, etc.).
-- **Fine-grained Control**: Non-verbal symbols (e.g., `[laughter]`) and pronunciation correction via pinyin or phonemes.
-- **Fast Inference**: RTF as low as 0.025 (40x faster than real-time).
-- **Diffusion Language Model-style Architecture**: A clean, streamlined, and scalable design that delivers both quality and speed.
+**Mục lục**: [Video hướng dẫn](#-video-hướng-dẫn) · [Tính năng](#-tính-năng) · [Yêu cầu máy](#-yêu-cầu-máy) · [Cài trên Windows](#-cài-đặt-trên-windows) · [Cài trên macOS](#-cài-đặt-trên-macos-macbook) · [Cài trên Linux](#-cài-đặt-trên-linux) · [Chạy & đăng nhập](#-chạy-vonia-và-đăng-nhập) · [Giọng có sẵn](#-giọng-có-sẵn-và-kho-giọng) · [API](#-api-cho-lập-trình-viên) · [Dùng OmniVoice bằng Python](#-dùng-thẳng-omnivoice-bằng-python) · [Xử lý sự cố](#-xử-lý-sự-cố) · [Bản quyền](#-bản-quyền-trích-dẫn-và-lưu-ý)
 
 ---
 
-## Installation
+## 📺 Video hướng dẫn
 
-Choose **one** of the following methods: **pip** or **uv**.
-
-### pip
-
-> We recommend using a fresh virtual environment (e.g., `conda`, `venv`, etc.) to avoid conflicts.
-
-**Step 1**: Install PyTorch
-
-<details>
-<summary>NVIDIA GPU</summary>
-
-```bash
-# Install pytorch with your CUDA version, e.g.
-pip install torch==2.8.0+cu128 torchaudio==2.8.0+cu128 --extra-index-url https://download.pytorch.org/whl/cu128
-```
-> See [PyTorch official site](https://pytorch.org/get-started/locally/) for other versions installation.
-
-</details>
-
-<details>
-<summary>Apple Silicon</summary>
-
-```bash
-pip install torch==2.8.0 torchaudio==2.8.0
-```
-
-</details>
-
-<details>
-<summary>Intel Arc GPU (XPU)</summary>
-
-Intel Arc GPUs (Alchemist and Battlemage architectures) are supported via PyTorch's XPU backend.
-
-1. Install the [Intel GPU drivers](https://dgpu-docs.intel.com/driver/installation.html) for your OS.
-
-2. Install PyTorch with XPU support from Intel's wheel index:
-
-```bash
-pip install torch torchaudio --index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
-```
-
-> See [Intel's PyTorch XPU guide](https://intel.github.io/intel-extension-for-pytorch/xpu/latest/) for version-specific instructions.
-
-3. Verify the backend is working:
-
-```bash
-python -c "import torch; print(torch.xpu.is_available(), torch.xpu.device_count())"
-```
-
-**Notes**:
-- `flash_attn` is not available on XPU; the model automatically falls back to SDPA.
-- Training with packed sequences (`flex_attention`) has partial XPU support; single-GPU SDPA training should work.
-- Tested on Arc A310 (Alchemist, 4 GB) and Arc Pro B50 (Battlemage, 16 GB).
-
-</details>
-
-**Step 2**: Install OmniVoice (choose one)
-
-```bash
-# From PyPI (stable release)
-pip install omnivoice
-
-# From the latest source on GitHub (no need to clone)
-pip install git+https://github.com/k2-fsa/OmniVoice.git
-
-# For development (clone first, editable install)
-git clone https://github.com/k2-fsa/OmniVoice.git
-cd OmniVoice
-pip install -e .
-```
-
-### uv
-
-Clone the repository and sync dependencies:
-
-```bash
-git clone https://github.com/k2-fsa/OmniVoice.git
-cd OmniVoice
-uv sync
-```
-
-> **Tip**: Can use mirror with `uv sync --default-index "https://mirrors.aliyun.com/pypi/simple"`
-
----
-
-## Quick Start
-
-Try OmniVoice without coding:
-
-- Launch the local web UI: `omnivoice-demo --ip 0.0.0.0 --port 8001`
-
-- Or try it directly on [HuggingFace Space](https://huggingface.co/spaces/k2-fsa/OmniVoice)
-
-- Or run it in Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/k2-fsa/OmniVoice/blob/master/docs/OmniVoice.ipynb)
-
-> If you have trouble connecting to HuggingFace when downloading the pre-trained models, set `export HF_ENDPOINT="https://hf-mirror.com"` before running.
-
-For full usage, see the [Python API](#python-api) and [Command-Line Tools](#command-line-tools) sections below.
-
----
-
-## Python API
-
-OmniVoice supports three generation modes. All features in this section are also available via [command-line tools](#command-line-tools).
-
-### Voice Cloning
-
-Clone a voice from a short reference audio. Provide `ref_audio` and `ref_text`:
-
-```python
-from omnivoice import OmniVoice
-import soundfile as sf
-import torch
-
-model = OmniVoice.from_pretrained(
-    "k2-fsa/OmniVoice",
-    device_map="cuda:0",
-    dtype=torch.float16
-)
-# Apple Silicon users: use device_map="mps" instead
-# Intel Arc GPU users: use device_map="xpu" instead
-
-audio = model.generate(
-    text="Hello, this is a test of zero-shot voice cloning.",
-    ref_audio="ref.wav",
-    ref_text="Transcription of the reference audio.",
-) # audio is a list of `np.ndarray` with shape (T,) at 24 kHz.
-
-# If you don't want to input `ref_text` manually, you can directly omit the `ref_text`.
-# The model will use Whisper ASR to auto-transcribe it. To use a local copy (or
-# a different Whisper model), pass `asr_model_name="..."` to `from_pretrained`.
-# To control which device Whisper is loaded on (e.g. another GPU in multi-GPU
-# setups, or the CPU), pass `asr_device="cuda:1"` (or `"cpu"`).
-
-sf.write("out.wav", audio[0], 24000)
-```
-
-#### Reusing a cloned voice across sessions
-
-Encode the reference audio once, save the resulting prompt, and skip the
-audio loading / auto-transcription steps in later sessions:
-
-```python
-prompt = model.create_voice_clone_prompt(
-    ref_audio="ref.wav", ref_text="Transcription of the reference audio."
-)
-prompt.save("my_voice.pt")
-
-# Later, in a new session:
-from omnivoice import VoiceClonePrompt
-
-prompt = VoiceClonePrompt.load("my_voice.pt")
-audio = model.generate(text="Hello again!", voice_clone_prompt=prompt)
-```
-
-> **Tips**
->
-> - Use a 3–10 seconds reference audio clip. Longer audio slows down inference and may degrade cloning quality.
-> - For standard pronunciation, use a reference audio in the **same language** as the target speech. In cross-lingual voice cloning (i.e., the reference audio and target speech are in different languages), the generated speech will carry an accent from the reference audio's language.
-> - For better results with Arabic numerals, normalize them to words first (e.g., "123" → "one hundred twenty-three"). You can pass `normalize_text=True` to `generate()` to do this automatically (opt-in; install the extra with `pip install "omnivoice[tn]"`, which pulls in [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)):
->
->   ```python
->   # "I have 2345 apples." is read correctly instead of digit-by-digit.
->   audio = model.generate(text="I have 2345 apples.", normalize_text=True)
->   ```
->
->   Chinese and English use WeTextProcessing; other languages fall back to `num2words` for integers. Inline control syntax (`[laughter]`, `[B EY1 S]`, pinyin tone markers) is preserved. On macOS (Apple Silicon), `pynini` has no wheel — install it via `conda install -c conda-forge pynini` first.
->
-> For more tips, see [docs/tips.md](docs/tips.md).
-
-### Voice Design
-
-Describe the desired voice with speaker attributes — no reference audio needed.
-Supported attributes: **gender** (male/female), **age** (child to elderly),
-**pitch** (very low to very high), **style** (whisper), **English accent**
-(American, British, etc.), and **Chinese dialect** (四川话, 陕西话, etc.).
-Attributes are comma-separated and freely combinable across categories.
-
-```python
-audio = model.generate(
-    text="Hello, this is a test of zero-shot voice design.",
-    instruct="female, low pitch, british accent",
-)
-```
-
-> **Note**: The model is primarily trained on the voice cloning task, so voice cloning is the most stable mode. Voice design is trained on Chinese and English data only. It can generalize to other languages, but may produce unstable results for some low-resource languages or edge cases.
-
-See [docs/voice-design.md](docs/voice-design.md) for the full attribute
-reference, Chinese equivalents, and usage tips.
-
-### Auto Voice
-
-Let the model choose a voice automatically:
-
-```python
-audio = model.generate(text="This is a sentence without any voice prompt.")
-```
-
-### Generation Parameters
-
-All above three modes share the same `model.generate()` API. You can further control the generation behavior via keyword arguments:
-
-```python
-audio = model.generate(
-    text="...",
-    num_step=32,  # diffusion steps (or 16 for faster inference)
-    speed=1.0,     # speed factor (>1.0 faster, <1.0 slower)
-    duration=10.0, # fixed output duration in seconds (overrides speed)
-    # ... more options
-)
-```
-See more detailed control in [docs/generation-parameters.md](docs/generation-parameters.md).
-
-### Non-Verbal & Pronunciation Control
-
-OmniVoice supports inline **non-verbal symbols** and **pronunciation correction** within the input text.
-
-**Non-verbal symbols**: Insert tags like `[laughter]` directly in the text to add expressive non-verbal sounds.
-
-```python
-audio = model.generate(text="[laughter] You really got me. I didn't see that coming at all.")
-```
-
-Supported tags: `[laughter]`, `[sigh]`, `[confirmation-en]`, `[question-en]`, `[question-ah]`, `[question-oh]`, `[question-ei]`, `[question-yi]`, `[surprise-ah]`, `[surprise-oh]`, `[surprise-wa]`, `[surprise-yo]`, `[dissatisfaction-hnn]`.
-
-**Pronunciation control (Chinese)**: Use pinyin with tone numbers to correct specific character pronunciations.
-
-```python
-audio = model.generate(text="这批货物打ZHE2出售后他严重SHE2本了，再也经不起ZHE1腾了。")
-```
-
-**Pronunciation control (English)**: Use [CMU pronunciation dictionary](https://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/cmudict.0.7a)  (uppercase, in brackets) to override default English pronunciations.
-
-```python
-audio = model.generate(text="He plays the [B EY1 S] guitar while catching a [B AE1 S] fish.")
-```
-
----
-
-## Command-Line Tools
-
-Three CLI entry points are provided. The CLI tools support all features available in the Python API (voice cloning, voice design, auto voice, generation parameters, etc.) — all controlled via command-line arguments.
-
-| Command | Description | Source |
+| # | Nội dung | Xem trên YouTube |
 |---|---|---|
-| `omnivoice-demo` | Interactive Gradio web demo | [omnivoice/cli/demo.py](omnivoice/cli/demo.py) |
-| `omnivoice-infer` | Single-item inference | [omnivoice/cli/infer.py](omnivoice/cli/infer.py) |
-| `omnivoice-infer-batch` | Batch inference across multiple GPUs | [omnivoice/cli/infer_batch.py](omnivoice/cli/infer_batch.py) |
+| 1 | Nhân bản giọng nói (Voice Clone) chỉ với vài giây âm thanh mẫu | [youtu.be/gEeab9pnitE](https://youtu.be/gEeab9pnitE) |
+| 2 | Tạo hội thoại nhiều giọng đọc từ kịch bản | [youtu.be/MeGyPMVkHTA](https://youtu.be/MeGyPMVkHTA) |
+| 3 | Giọng nói sang văn bản và phụ đề SRT (Speech to Text) | [youtu.be/UMhGDZTyMoY](https://youtu.be/UMhGDZTyMoY) |
+| 4 | Cài đặt môi trường: GPU, VRAM, model | [youtu.be/mUHs6dTabto](https://youtu.be/mUHs6dTabto) |
+| 5 | Webhook API & API key — tạo giọng tự động từ phần mềm khác | [youtu.be/4CFR7VdBkDw](https://youtu.be/4CFR7VdBkDw) |
 
-### Demo
+---
+
+## ✨ Tính năng
+
+**Giao diện Vonia**
+- **Nhân bản giọng** từ một đoạn âm thanh mẫu 3–10 giây, lưu vào **Kho giọng** để dùng lại. Giọng đã lưu **vẫn còn sau khi khởi động lại** (prompt đã mã hoá được lưu ra đĩa, không phải chạy lại).
+- **Văn bản → giọng nói**: nhập hoặc dán văn bản, mỗi dòng thành một câu có thể nghe lại, tạo lại, xuất file.
+- **Hội thoại nhiều giọng**: dán kịch bản dạng `Tên: lời thoại`, tự nhận diện nhân vật và gán giọng.
+- **Giọng nói → văn bản** bằng Whisper, xuất phụ đề **SRT**.
+- **Đọc số tiếng Việt** đúng cách (2026 → "hai nghìn không trăm hai mươi sáu"), sửa phát âm.
+- **Tự giải phóng VRAM** khi máy rảnh để GPU còn dùng việc khác.
+- **API + API key cá nhân** (chuẩn OpenAI `Authorization: Bearer`), có trang Webhook trong giao diện.
+- Đăng nhập Google hoặc email; người đăng ký đầu tiên là Quản trị viên.
+
+**Từ model OmniVoice**
+- Hỗ trợ **hơn 600 ngôn ngữ** ([danh sách](docs/languages.md)), có tiếng Việt.
+- **Voice Design**: tạo giọng từ mô tả (giới tính, tuổi, cao độ, giọng thì thầm, accent…) mà không cần audio mẫu.
+- **Ký hiệu biểu cảm** như `[laughter]`, `[sigh]`; sửa phát âm tiếng Anh bằng phiên âm CMU.
+- Tốc độ nhanh: RTF thấp tới 0.025 (nhanh gấp 40 lần thời gian thực trên GPU mạnh).
+
+---
+
+## 💻 Yêu cầu máy
+
+| Hạng mục | Tối thiểu | Khuyến nghị |
+|---|---|---|
+| Hệ điều hành | Windows 10/11, macOS 13+, Linux x86_64 | Windows 11, macOS 14+, Ubuntu 22.04+ |
+| Phần cứng | Chạy được bằng CPU nhưng **rất chậm** | GPU NVIDIA ≥ 8 GB VRAM (Windows/Linux) hoặc MacBook chip **M1/M2/M3/M4** |
+| Ổ đĩa trống | ~10 GB (model + thư viện) | 20 GB |
+| Mạng | Cần internet để tải model lần đầu (vài GB) | |
+
+Model TTS chiếm khoảng **2,2 GB VRAM** (float16); Whisper (dùng cho nhân bản giọng không nhập lời mẫu và Speech to Text) cần thêm khoảng 2 GB.
+
+Script build tự cài mọi thứ còn thiếu: [uv](https://docs.astral.sh/uv/) (quản lý Python 3.12), [bun](https://bun.sh) (build giao diện web, nếu máy chưa có Node.js), thư viện Python theo `uv.lock`, và PyTorch đúng loại máy (CUDA 12.8 / Apple MPS / CPU).
+
+---
+
+## 🪟 Cài đặt trên Windows
+
+**1. Cài công cụ cần có** (mở PowerShell):
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Gyan.FFmpeg -e
+winget install --id Docker.DockerDesktop -e
+```
+
+- **Git** để tải mã nguồn, **FFmpeg** để xử lý âm thanh/video (xuất mp3, đọc file mp4…).
+- **Docker Desktop** để chạy **Redis** (lưu tài khoản và phiên đăng nhập). Nếu chỉ dùng một mình trên máy, có thể bỏ qua và tắt đăng nhập (xem [mục chạy](#-chạy-vonia-và-đăng-nhập)).
+- Có card NVIDIA: cập nhật **driver NVIDIA** mới nhất (driver hỗ trợ CUDA 12.8 trở lên). Không cần cài CUDA Toolkit riêng.
+
+**2. Tải mã nguồn và build**:
+
+```powershell
+git clone https://github.com/locphamnguyen/vonia.git
+cd vonia
+.\build.cmd
+```
+
+`build.cmd` (hoặc `.\build.ps1`) sẽ:
+1. Tự cài `uv` và `bun` nếu thiếu.
+2. Cài Python 3.12 + thư viện vào `.venv` (torch CUDA 12.8 nếu có `nvidia-smi`, ngược lại bản CPU).
+3. Build giao diện web vào `omnivoice/server/webdist`.
+4. Tạo file `.env` từ `.env.example` (kèm khoá phiên ngẫu nhiên).
+5. In ra thiết bị torch nhận được, ví dụ `cuda (NVIDIA GeForce RTX 4060)`.
+
+Tuỳ chọn hữu ích: `.\build.cmd --download-model` (tải sẵn model), `--torch cpu` (ép bản CPU), `--skip-web` (không build lại giao diện).
+
+**3. Chạy**: bấm đúp **`start-vonia.cmd`**. File này tự bật Docker Desktop + Redis, thêm FFmpeg vào PATH, chạy server và mở trình duyệt tại <http://127.0.0.1:8002> sau khoảng 20 giây.
+
+> ⚠️ Đường dẫn thư mục nên **không có dấu tiếng Việt** và không quá dài, ví dụ `C:\vonia` hoặc `E:\0project\vonia`.
+
+---
+
+## 🍎 Cài đặt trên macOS (MacBook)
+
+Hỗ trợ tốt nhất trên **MacBook chip Apple Silicon (M1–M4)** — model chạy bằng GPU qua **MPS**. Mac chip Intel chạy được bằng CPU nhưng chậm.
+
+**1. Cài công cụ** (mở Terminal):
 
 ```bash
-omnivoice-demo --ip 0.0.0.0 --port 8001
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install git ffmpeg redis
+brew services start redis
 ```
 
-Provides a web UI for voice cloning and voice design. See `omnivoice-demo --help` for all options.
-
-### Single Inference
+**2. Tải mã nguồn và build**:
 
 ```bash
-# Voice Cloning
-# ref_text can be omitted (Whisper will auto-transcribe ref_audio to get it).
-omnivoice-infer \
-    --model k2-fsa/OmniVoice \
-    --text "This is a test for text to speech." \
-    --ref_audio ref.wav \
-    --ref_text "Transcription of the reference audio." \
-    --output hello.wav
-
-# Voice Design
-omnivoice-infer --model k2-fsa/OmniVoice \
-    --text "This is a test for text to speech." \
-    --instruct "male, British accent" \
-    --output hello.wav
-
-# Auto Voice
-omnivoice-infer \
-    --model k2-fsa/OmniVoice \
-    --text "This is a test for text to speech."\
-    --output hello.wav
+git clone https://github.com/locphamnguyen/vonia.git
+cd vonia
+./build.sh
 ```
 
-### Batch Inference
+Trên macOS script luôn cài torch bản PyPI (có MPS). Cuối quá trình sẽ in `thiết bị: mps (Apple Silicon)`.
 
-`omnivoice-infer-batch` can distribute batch inference across multiple GPUs, designed for large-scale TTS tasks.
+**3. Chạy** (file `.env` do build tạo sẵn đã trỏ `REDIS_URL=redis://127.0.0.1:6379`, khớp với Redis vừa cài):
 
 ```bash
-omnivoice-infer-batch \
-    --model k2-fsa/OmniVoice \
-    --test_list test.jsonl \
-    --res_dir results/
+.venv/bin/omnivoice-serve --host 127.0.0.1 --port 8002
 ```
 
-The test list is a JSONL file where each line is a JSON object:
-```json
-{"id": "sample_001", "text": "Hello world", "ref_audio": "/path/to/ref.wav", "ref_text": "Reference transcript", "instruct": "female, british accent", "language_id": "en", "duration": 10.0, "speed": 1.0}
-```
-Only `id` and `text` are mandatory fields. `ref_audio` and `ref_text` are used in voice cloning mode. `instruct` is used in voice design mode. If no reference audio or instruct are provided, the model will generate text in a random voice.
+Mở <http://127.0.0.1:8002>.
 
-`language_id`, `duration`, and `speed` are optional. `duration` (in seconds) fixes the output length; `speed` controls the speaking rate. If `duration` and `speed` are both provided, `speed` will be ignored.
+> 💡 Nếu muốn dùng `normalize_text` của OmniVoice cho tiếng Anh/Trung trên Mac, cần `conda install -c conda-forge pynini` trước khi cài nhóm `tn` (pynini chưa có wheel cho Apple Silicon). Vonia không cần phần này để đọc số tiếng Việt.
 
-### FlashInfer Acceleration
+---
 
-Inference can be accelerated ~2-2.9x losslessly with [FlashInfer](https://github.com/flashinfer-ai/flashinfer) kernels (sequence packing for the CFG cond/uncond pair, fused RMSNorm/RoPE/GEMM kernels, and optional CUDA graphs).
+## 🐧 Cài đặt trên Linux
 
-**Installation** (NVIDIA GPUs; pick the index matching your CUDA version, e.g. cu128 for PyTorch built with CUDA 12.8):
+Ví dụ cho Ubuntu/Debian; các bản khác thay `apt` bằng trình quản lý gói tương ứng.
+
+**1. Cài công cụ**:
 
 ```bash
-pip install flashinfer-python==0.6.15.post1 "flashinfer-jit-cache==0.6.15.post1+cu128" \
-    --extra-index-url https://flashinfer.ai/whl/cu128/
+sudo apt update
+sudo apt install -y git curl unzip ffmpeg redis-server
+sudo systemctl enable --now redis-server
 ```
 
-**Usage** with the batch inference CLI:
+Có GPU NVIDIA: cài driver (vd `sudo ubuntu-drivers autoinstall`, rồi khởi động lại) và kiểm tra bằng `nvidia-smi`.
+
+**2. Tải mã nguồn và build**:
 
 ```bash
-omnivoice-infer-batch \
-    --model k2-fsa/OmniVoice \
-    --test_list test.jsonl \
-    --res_dir results/ \
-    --batch_size 8 \
-    --enable_flashinfer true
+git clone https://github.com/locphamnguyen/vonia.git
+cd vonia
+./build.sh
 ```
 
-or with the Python API:
+**3. Chạy** (file `.env` do build tạo sẵn đã trỏ `REDIS_URL=redis://127.0.0.1:6379`, khớp với Redis vừa cài):
+
+```bash
+.venv/bin/omnivoice-serve --host 127.0.0.1 --port 8002
+```
+
+Muốn chạy nền khi khởi động máy (systemd), public ra Internet qua Cloudflare Tunnel, hay triển khai trên k3s: xem [docs/huong-dan-cai-dat-vonia.md](docs/huong-dan-cai-dat-vonia.md).
+
+---
+
+## ▶️ Chạy Vonia và đăng nhập
+
+```bash
+# Windows
+.venv\Scripts\omnivoice-serve.exe --host 127.0.0.1 --port 8002
+# macOS / Linux
+.venv/bin/omnivoice-serve --host 127.0.0.1 --port 8002
+```
+
+- Gọi thẳng file trong `.venv` (không qua `uv run`) để giữ đúng bản torch đã chọn khi build.
+- Lần đầu chạy, model `k2-fsa/OmniVoice` tự tải từ Hugging Face. Nếu bị chặn, đặt `HF_ENDPOINT=https://hf-mirror.com`.
+- **Đăng nhập**: người đăng ký **đầu tiên** tự động là Quản trị viên; người sau phải được duyệt trong mục "Thành viên". Chi tiết: [docs/dang-ky-dang-nhap.md](docs/dang-ky-dang-nhap.md).
+- Chỉ dùng một mình trên máy, không muốn cài Redis: thêm `VONIA_AUTH=off` vào `.env` (**chỉ dùng cục bộ**, không mở ra Internet).
+
+Các tham số hay dùng của `omnivoice-serve`:
+
+| Tham số | Ý nghĩa |
+|---|---|
+| `--port 8002` | Cổng web/API |
+| `--device cuda` / `mps` / `cpu` | Chọn thiết bị (mặc định tự nhận) |
+| `--voices-dir ~/.cache/omnivoice/voices` | Nơi lưu Kho giọng |
+| `--load-asr` | Nạp sẵn Whisper khi khởi động |
+| `--model k2-fsa/OmniVoice` | Model hoặc đường dẫn checkpoint |
+
+Biến `.env` quan trọng: `VONIA_SESSION_SECRET`, `REDIS_URL`, `VONIA_ADMIN_EMAILS`, `GOOGLE_CLIENT_ID/SECRET`, `VONIA_VRAM_IDLE_MINUTES`, `VONIA_VI_NUMBERS`. Xem chú thích trong [.env.example](.env.example).
+
+---
+
+## 🗣️ Giọng có sẵn và Kho giọng
+
+- Source đi kèm sẵn giọng **`nhatnam`** (giọng nam tiếng Việt) trong `omnivoice/server/bundled_voices/`. Lần đầu chạy, giọng này tự xuất hiện trong mục **"Giọng của bạn"** — không cần clone lại. Nếu bạn xoá, Vonia sẽ không tự thêm lại.
+- Thêm giọng đi kèm khác: đặt `ref.wav` (đoạn mẫu ≤ 20 giây) và `prompt.pt` vào một thư mục con, rồi khai báo trong `bundled_voices/voices.json`.
+- Mỗi giọng trong Kho được lưu ở `~/.cache/omnivoice/voices/<id>/` gồm `ref.*` (audio mẫu) và `prompt.pt` (prompt đã mã hoá). Sao lưu thư mục này là giữ được toàn bộ giọng.
+
+> Mẹo clone giọng đẹp: dùng đoạn mẫu 3–10 giây, sạch tiếng ồn, và **nhập đúng lời** của đoạn mẫu (đủ dấu câu) để AI không đọc thừa chữ.
+
+---
+
+## 🔌 API cho lập trình viên
+
+Tạo API key trong giao diện: **Webhook → API key → Tạo API key** (key dạng `vonia_…`, chỉ hiện một lần).
+
+```bash
+curl -X POST http://127.0.0.1:8002/tts \
+  -H "Authorization: Bearer vonia_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Xin chào, đây là giọng đọc từ Vonia.", "voice_id": "nhatnam", "language": "vi"}' \
+  --output xin-chao.wav
+```
+
+- Danh sách giọng: `GET /v1/voices` · Giọng preset: `GET /v1/presets` · Nhận dạng giọng nói: `POST /v1/stt` · Sức khoẻ: `GET /health`.
+- Endpoint tương thích OpenAI: `POST /v1/audio/speech` (dùng được với OpenAI SDK).
+- Tài liệu đầy đủ: [VONIA_API.md](VONIA_API.md), [docs/api.md](docs/api.md), Postman collection trong [docs/](docs/OmniVoice-API.postman_collection.json).
+
+---
+
+## 🐍 Dùng thẳng OmniVoice bằng Python
+
+Sau khi build, `.venv` đã có gói `omnivoice`, dùng được ngoài giao diện:
 
 ```python
-from omnivoice.models.omnivoice_flashinfer import apply_flashinfer
+import torch
+import soundfile as sf
+from omnivoice import OmniVoice, VoiceClonePrompt
 
-model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="cuda", dtype=torch.float16)
-apply_flashinfer(model)                          # throughput / batched inference
-apply_flashinfer(model, enable_cuda_graph=True)  # recommended for batch=1 (low latency)
+# device_map: "cuda:0" (NVIDIA), "mps" (MacBook chip M), "xpu" (Intel Arc), "cpu"
+model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="cuda:0", dtype=torch.float16)
+
+# 1) Nhân bản giọng
+audio = model.generate(
+    text="Đây là giọng được nhân bản bằng OmniVoice.",
+    language="vi",
+    ref_audio="mau.wav",
+    ref_text="Lời chính xác của đoạn âm thanh mẫu.",  # bỏ trống thì Whisper tự nghe (cần load_asr=True)
+)
+sf.write("clone.wav", audio[0], 24000)
+
+# 2) Lưu prompt giọng để lần sau dùng lại, không phải mã hoá lại
+prompt = model.create_voice_clone_prompt(ref_audio="mau.wav", ref_text="Lời chính xác của đoạn mẫu.")
+prompt.save("giong-cua-toi.pt")
+audio = model.generate(text="Dùng lại giọng đã lưu.", voice_clone_prompt=VoiceClonePrompt.load("giong-cua-toi.pt"))
+
+# 3) Thiết kế giọng bằng mô tả (không cần audio mẫu)
+audio = model.generate(text="Hello, this is voice design.", instruct="female, low pitch, british accent")
+
+# 4) Để model tự chọn giọng
+audio = model.generate(text="Câu này không có giọng mẫu.")
 ```
 
-CUDA graphs are recommended for single-stream (batch=1) usage, where kernel-launch overhead dominates; at batch >= 4 the plain FlashInfer path is already the fastest configuration.
+Tham số thường dùng: `num_step=32` (hoặc 16 để nhanh hơn), `speed=1.0`, `duration=10.0` (ép độ dài). Xem [docs/generation-parameters.md](docs/generation-parameters.md), [docs/voice-design.md](docs/voice-design.md), [docs/tips.md](docs/tips.md).
 
-**Benchmark** (seed-tts zh testset, 2020 samples / 3.3h audio, voice cloning, single H100, fp16, `num_step=32`; Average RTF as reported by `omnivoice-infer-batch`, outputs ASR-verified lossless):
-
-| batch size | baseline | FlashInfer | speedup |
-|---|---|---|---|
-| 1 | 0.0899 | 0.0430 | 2.1x |
-| 1 + CUDA graph | — | 0.0367 | 2.4x |
-| 2 | 0.0480 | 0.0245 | 2.0x |
-| 4 | 0.0331 | 0.0152 | 2.2x |
-| 8 | 0.0298 | **0.0115** | **2.6x** |
+Công cụ dòng lệnh của OmniVoice cũng có sẵn trong `.venv`: `omnivoice-demo` (giao diện Gradio), `omnivoice-infer`, `omnivoice-infer-batch`, `omnivoice-merge-lora`. Huấn luyện/fine-tune (kể cả LoRA): [examples/](examples/), [docs/training.md](docs/training.md), [docs/lora_finetuning.md](docs/lora_finetuning.md).
 
 ---
 
-## Training & Evaluation
+## 🛠️ Xử lý sự cố
 
-See [examples/](examples/) for the complete pipeline — from data preparation to training, evaluation, and finetuning.
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Build báo thiết bị `cpu (chậm)` dù có GPU NVIDIA | Cập nhật driver, kiểm tra `nvidia-smi`, rồi chạy lại `build --torch cuda` |
+| `Redis connection refused` khi đăng nhập | Bật Redis (Docker / `brew services start redis` / `systemctl start redis-server`) và kiểm tra `REDIS_URL` trong `.env`; hoặc `VONIA_AUTH=off` khi dùng cục bộ |
+| Tải model lỗi hoặc rất chậm | Đặt `HF_ENDPOINT=https://hf-mirror.com`; nếu có token thì đặt `HF_TOKEN` |
+| Windows báo `WinError 1314` (symlink) khi tải model | Bật **Developer Mode** của Windows, hoặc chạy lại lệnh — lỗi thường chỉ xảy ra một lần |
+| Hết VRAM (CUDA out of memory) | Bật tự giải phóng VRAM trong tab Cài đặt môi trường, đóng ứng dụng khác dùng GPU, dùng đoạn mẫu ngắn hơn |
+| Giọng clone đọc thừa chữ ở đầu câu | Nhập đúng lời của đoạn mẫu; thử tạo lại (seed khác) |
+| Số tiếng Việt đọc sai | Đặt `VONIA_VI_NUMBERS=on` trong `.env` (mặc định `off`: để model tự đọc số) hoặc gửi `normalize: true` khi gọi API |
 
----
-
-## Discussion & Communication
-
-You can directly discuss on [GitHub Issues](https://github.com/k2-fsa/OmniVoice/issues).
-
-You can also scan the QR code to join our wechat group or follow our wechat official account.
-
-| Wechat Group | Wechat Official Account |
-| ------------ | ----------------------- |
-|![wechat](https://k2-fsa.org/zh-CN/assets/pic/wechat_group.jpg) |![wechat](https://k2-fsa.org/zh-CN/assets/pic/wechat_account.jpg) |
+Thêm chi tiết: [docs/huong-dan-cai-dat-vonia.md](docs/huong-dan-cai-dat-vonia.md#11-xử-lý-sự-cố).
 
 ---
 
-## Community Projects
+## 📜 Bản quyền, trích dẫn và lưu ý
 
-OmniVoice is supported by a growing ecosystem of community projects.
-Explore them in [Community Projects](docs/community-projects.md).
+- Mã nguồn phát hành theo giấy phép **Apache-2.0** ([LICENSE](LICENSE)), giống OmniVoice gốc.
+- Model và phần lõi TTS: **OmniVoice (default, powered by k2-fsa/OmniVoice)** — <https://github.com/k2-fsa/OmniVoice>. Các dự án cộng đồng khác dùng OmniVoice: [docs/community-projects.md](docs/community-projects.md).
 
----
-
-## Citation
+Nếu dùng trong nghiên cứu, vui lòng trích dẫn bài báo OmniVoice:
 
 ```bibtex
 @article{zhu2026omnivoice,
@@ -416,8 +295,4 @@ Explore them in [Community Projects](docs/community-projects.md).
 }
 ```
 
----
-
-## Disclaimer
-
-Users are strictly prohibited from using this model for unauthorized voice cloning, voice impersonation, fraud, scams, or any other illegal or unethical activities. All users shall ensure full compliance with applicable local laws, regulations, and ethical standards. The developers assume no liability for any misuse of this model and advocate for responsible AI development and use, encouraging the community to uphold safety and ethical principles in AI research and applications.
+> ⚠️ **Sử dụng có trách nhiệm**: nghiêm cấm dùng Vonia/OmniVoice để nhân bản giọng khi chưa được phép, mạo danh, lừa đảo hay bất kỳ mục đích trái pháp luật hoặc trái đạo đức nào. Người dùng tự chịu trách nhiệm tuân thủ pháp luật nơi mình sinh sống; nhóm phát triển không chịu trách nhiệm cho việc lạm dụng.

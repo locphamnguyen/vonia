@@ -313,3 +313,26 @@ export async function revokeApiKey(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/account/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' })
   if (!res.ok) await asError(res)
 }
+
+/* Dải thông báo từ trang trung tâm (gọi-về, omnivoice/server/phone_home.py). */
+export interface ServerAnnouncement {
+  id: string
+  text: string
+  level: 'info' | 'warning' | 'critical'
+  link: string | null
+  linkLabel: string | null
+  /** Mặc định false: không có nút đóng — thông báo chủ dự án gửi tới người dùng. */
+  dismissible: boolean
+}
+
+/** Best-effort: lỗi (máy chủ cũ 404, chưa đăng nhập, mất mạng) ⇒ null, dải ẩn. Không chuyển trang. */
+export async function getAnnouncement(): Promise<ServerAnnouncement | null> {
+  try {
+    const res = await fetch(`${API_BASE}/v1/announcement`, { headers: { Accept: 'application/json' } })
+    if (!res.ok) return null
+    const a = (await res.json())?.announcement
+    return a && typeof a.id === 'string' && typeof a.text === 'string' ? a : null
+  } catch {
+    return null
+  }
+}

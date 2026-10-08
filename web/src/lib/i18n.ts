@@ -174,6 +174,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     m_tts_ph: 'Nhập nội dung cần tạo âm thanh…', m_playing: 'Đang phát…', m_previewing: 'Đang phát thử…',
     m_download_all: 'Tải tất cả', m_save_voice: 'Lưu giọng này', m_saved_voices: 'Giọng đã lưu',
     m_export_merge: 'Gộp 1 file', m_export_split: 'Tách từng dòng', m_merging: 'Đang gộp file…', m_download_btn: 'Tải xuống',
+    ann_details: 'Xem chi tiết', ann_dismiss: 'Đóng thông báo này',
   },
   en: {
     nav_studio: 'Voice Studio', nav_webhook: 'Webhook', nav_settings: 'Settings',
@@ -347,6 +348,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     m_tts_ph: 'Type the content to synthesize…', m_playing: 'Playing…', m_previewing: 'Previewing…',
     m_download_all: 'Download all', m_save_voice: 'Save this voice', m_saved_voices: 'Saved voices',
     m_export_merge: 'Merge into 1 file', m_export_split: 'Per line', m_merging: 'Merging…', m_download_btn: 'Download',
+    ann_details: 'Learn more', ann_dismiss: 'Dismiss this notice',
   },
 }
 

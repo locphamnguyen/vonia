@@ -14,6 +14,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { MembersModal } from './components/MembersModal'
 import { Onboarding } from './components/Onboarding'
 import { MobileApp } from './mobile/MobileApp'
+import { ServerAnnouncementBanner } from './components/ServerAnnouncementBanner'
 
 // Switch to the dedicated mobile layout on narrow viewports (phones).
 function useIsMobile() {
@@ -221,6 +222,7 @@ export default function App() {
               sub={sub} userEmail={me?.email} />
             <div className="main">
               <ConnectionBanner lang={lang} />
+              <ServerAnnouncementBanner lang={lang} />
               {nav === 'studio' ? (
                 <>
                   <Topbar lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} />

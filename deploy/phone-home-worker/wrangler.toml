@@ -1,0 +1,23 @@
+# Cloudflare Worker nhận gọi-về (phone-home) từ các bản Vonia đã cài.
+# Deploy: xem README.md cùng thư mục.
+name = "vonia-phone-home"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Gắn vào domain trung tâm. Bản cài gọi:
+#   https://updater.zopen.vn/vonia-phone-home/v1/ping
+#   (omnivoice/server/phone_home.py → PHONE_HOME_URL)
+# Prefix riêng "vonia-phone-home" để sản phẩm khác (vd ZaloCRM) dùng chung
+# updater.zopen.vn bằng đường dẫn của nó mà không đụng nhau.
+routes = [
+  { pattern = "updater.zopen.vn/vonia-phone-home/*", zone_name = "zopen.vn" },
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vonia-phone-home"
+# database_id = "<điền sau khi `wrangler d1 create vonia-phone-home`>"
+
+[vars]
+# Khoá quản trị cho /vonia-phone-home/v1/admin/* — đặt bằng
+# `wrangler secret put ADMIN_TOKEN`, KHÔNG ghi ở đây.

@@ -9,6 +9,7 @@ import { t, type Lang } from '../lib/i18n'
 import { VOICES, LANG_NAME, LANGUAGES, avatarColor } from '../lib/data'
 import { useVoices } from '../app/store'
 import { VoicePickerOverlay } from '../components/voice-library'
+import { ServerAnnouncementBanner } from '../components/ServerAnnouncementBanner'
 import { useGenerator, fmtTime, type GenRow } from '../hooks/useGenerator'
 import { splitText, type SplitMode } from '../lib/text'
 import { mergeWavBlobs, saveBlob } from '../lib/audio'
@@ -747,6 +748,7 @@ export function MobileApp({ lang, setLang, onMembers, pending }: { lang: Lang; s
           <Icon name="menu" size={20} />
         </button>
       </div>
+      <ServerAnnouncementBanner lang={lang} compact />
 
       {visited.has('clone') && <Pane active={tab === 'clone'}><CloneScreen lang={lang} /></Pane>}
       {visited.has('dialogue') && <Pane active={tab === 'dialogue'}><DialogueScreen lang={lang} /></Pane>}

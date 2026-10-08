@@ -30,6 +30,7 @@ from .auth import (
     Auth, AuthError, User, UserStore, admin_update, api_key_from_headers,
 )
 from .auth_pages import login_page, pending_page, register_page
+from . import phone_home
 from .billing import BillingStore, OrderRecord, new_invoice_number, new_payment_code
 from .engine import Engine, QueueFullError
 from .normalize import NormalizerError
@@ -88,9 +89,22 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
 
         if engine.supports_idle_offload:
             app.state.idle_task = asyncio.create_task(engine.idle_monitor())
+        # Gọi-về trang trung tâm + dải thông báo (phone_home.py).
+        app.state.phone_home_task = (
+            asyncio.create_task(phone_home.phone_home_loop(app.state.http, app.state.redis))
+            if phone_home.should_start() else None
+        )
 
         yield
 
+        # Dừng vòng gọi-về TRƯỚC khi đóng http/redis mà nó đang dùng.
+        ph_task = getattr(app.state, "phone_home_task", None)
+        if ph_task is not None:
+            ph_task.cancel()
+            try:
+                await ph_task
+            except asyncio.CancelledError:
+                pass
         await app.state.redis.aclose()
         await app.state.http.aclose()
         task = getattr(app.state, "idle_task", None)
@@ -469,6 +483,13 @@ def create_app(engine: Engine, web_dir: Optional[str] = None) -> FastAPI:
         return Response(status_code=204)
 
     # ── System ────────────────────────────────────────────────────────────────
+    @app.get("/v1/announcement")
+    async def get_announcement():
+        """Thông báo từ trang trung tâm đang cache (không gọi ra ngoài theo request)."""
+        a = phone_home.current_announcement()
+        return JSONResponse({"announcement": a.to_json() if a else None},
+                            headers={"Cache-Control": "no-store"})
+
     @app.get("/health")
     async def health():
         return {"status": "ok", "model": engine.model_id, "device": engine.device,

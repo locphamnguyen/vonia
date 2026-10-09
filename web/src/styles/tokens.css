@@ -740,6 +740,22 @@ button:focus-visible, .nav-item:focus-visible, .tab:focus-visible, .mini-btn:foc
 .conn-banner .ico { flex: none; }
 .conn-banner strong { font-weight: 700; }
 
+/* Dải thông báo từ trang trung tâm (ServerAnnouncementBanner) */
+.ann-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; font-size: 13px; font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-softer); color: var(--text);
+}
+.ann-banner .ico { flex: none; }
+.ann-banner.ann-warning { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.ann-banner.ann-critical { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
+.ann-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ann-link { flex: none; font-weight: 700; color: inherit; text-decoration: underline; }
+.ann-close { flex: none; border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; padding: 2px; display: grid; place-items: center; }
+.ann-close:hover { opacity: 1; }
+.ann-banner.ann-compact { margin: 0 14px 10px; border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; flex-wrap: wrap; }
+
 /* ============================================================
    Payment modal (VietQR / international card / USDT)
    ============================================================ */

@@ -13,7 +13,7 @@
   <a href="https://github.com/k2-fsa/OmniVoice"><img src="https://img.shields.io/badge/GitHub-k2--fsa%2FOmniVoice-black?logo=github" alt="OmniVoice gốc"></a>
 </p>
 
-**Mục lục**: [Video hướng dẫn](#-video-hướng-dẫn) · [Tính năng](#-tính-năng) · [Yêu cầu máy](#-yêu-cầu-máy) · [Cài trên Windows](#-cài-đặt-trên-windows) · [Cài trên macOS](#-cài-đặt-trên-macos-macbook) · [Cài trên Linux](#-cài-đặt-trên-linux) · [Chạy & đăng nhập](#-chạy-vonia-và-đăng-nhập) · [Giọng có sẵn](#-giọng-có-sẵn-và-kho-giọng) · [API](#-api-cho-lập-trình-viên) · [Dùng OmniVoice bằng Python](#-dùng-thẳng-omnivoice-bằng-python) · [Xử lý sự cố](#-xử-lý-sự-cố) · [Bản quyền](#-bản-quyền-trích-dẫn-và-lưu-ý)
+**Mục lục**: [Video hướng dẫn](#-video-hướng-dẫn) · [Tính năng](#-tính-năng) · [Yêu cầu máy](#-yêu-cầu-máy) · [Cài trên Windows](#-cài-đặt-trên-windows) · [Cài trên macOS](#-cài-đặt-trên-macos-macbook) · [Cài trên Linux](#-cài-đặt-trên-linux) · [Chạy & đăng nhập](#-chạy-vonia-và-đăng-nhập) · [Thông báo cập nhật](#-thông-báo-cập-nhật-và-gọi-về-trang-trung-tâm) · [Giọng có sẵn](#-giọng-có-sẵn-và-kho-giọng) · [API](#-api-cho-lập-trình-viên) · [Dùng OmniVoice bằng Python](#-dùng-thẳng-omnivoice-bằng-python) · [Xử lý sự cố](#-xử-lý-sự-cố) · [Bản quyền](#-bản-quyền-trích-dẫn-và-lưu-ý)
 
 ---
 
@@ -193,6 +193,21 @@ Các tham số hay dùng của `omnivoice-serve`:
 | `--model k2-fsa/OmniVoice` | Model hoặc đường dẫn checkpoint |
 
 Biến `.env` quan trọng: `VONIA_SESSION_SECRET`, `REDIS_URL`, `VONIA_ADMIN_EMAILS`, `GOOGLE_CLIENT_ID/SECRET`, `VONIA_VRAM_IDLE_MINUTES`, `VONIA_VI_NUMBERS`. Xem chú thích trong [.env.example](.env.example).
+
+---
+
+## 📣 Thông báo cập nhật và gọi-về trang trung tâm
+
+Khi có bản mới hoặc tin cần biết, một **dải thông báo mỏng** hiện ở đầu vùng làm việc (ngay trên thanh tab) — trên điện thoại thì ngay dưới thanh tiêu đề. Không có gì để báo thì dải ẩn hẳn.
+
+Để có thông báo, máy chủ Vonia định kỳ (30 giây sau khi khởi động, rồi mỗi 12 giờ) gọi về trang trung tâm của dự án và gửi **đúng hai thứ**:
+
+| Trường | Là gì |
+|---|---|
+| `instanceId` | chuỗi ngẫu nhiên sinh lần đầu chạy, lưu ở Redis (`vonia:instance_id`; không có Redis thì ở tệp `~/.cache/omnivoice/instance_id`) — để đếm "một máy chủ = một bản cài" |
+| `version` | số phiên bản Vonia đang chạy |
+
+**Không gửi** gì về người dùng, tài khoản, giọng nói, văn bản hay cấu hình. Phía nhận **không lưu địa chỉ IP**. Máy chủ không có mạng ra ngoài thì bỏ qua êm, không ảnh hưởng gì. Đây là một phần của bản phát hành, **không có biến `.env` để tắt**. Mã ở `omnivoice/server/phone_home.py`, `omnivoice/server/announcement.py` và `web/src/components/ServerAnnouncementBanner.tsx`; phía nhận ở `deploy/phone-home-worker/`.
 
 ---
 
